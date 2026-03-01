@@ -1,0 +1,197 @@
+:root {
+  --bg: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-hover: #0f3460;
+  --bg-input: #0d1b2a;
+  --accent: #e94560;
+  --accent-soft: #533483;
+  --text: #eee;
+  --text-muted: #888;
+  --border: #2a2a4a;
+  --radius: 8px;
+  --success: #4ade80;
+  --warning: #fbbf24;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+#root { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+h1 { font-size: 1.6rem; margin-bottom: 4px; }
+h2 { font-size: 1.2rem; margin-bottom: 12px; color: var(--text-muted); font-weight: 400; }
+h3 { font-size: 1rem; margin-bottom: 8px; }
+
+.hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+.loading { text-align: center; padding: 80px; color: var(--text-muted); }
+
+/* ─── Layout ─────────────────────────────────────────────────────────── */
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.app-header .actions { display: flex; align-items: center; gap: 8px; }
+.dpi-control { display: flex; align-items: center; gap: 6px; }
+.dpi-input { width: 80px; text-align: center; }
+
+.main-grid {
+  display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start;
+}
+
+.status { font-size: 0.8rem; color: var(--success); }
+
+/* ─── Cards ──────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+}
+.card + .card { margin-top: 16px; }
+.placeholder { min-height: 300px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+
+/* ─── Mouse View ─────────────────────────────────────────────────────── */
+
+.mouse-view { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.mouse-svg { position: relative; width: 220px; height: 340px; }
+.mouse-body { width: 100%; height: 100%; }
+
+.mouse-btn {
+  position: absolute; border: 2px solid transparent; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s; display: flex; align-items: center;
+  justify-content: center; font-size: 0.65rem; color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+}
+.mouse-btn:hover { border-color: var(--accent); background: rgba(233,69,96,0.1); }
+.mouse-btn.active { border-color: var(--accent); background: rgba(233,69,96,0.2); color: var(--text); }
+.mouse-btn.configured { border-color: var(--success); background: rgba(74,222,128,0.1); }
+.mouse-btn.configured.active { border-color: var(--accent); background: rgba(233,69,96,0.2); }
+
+.mouse-btn[data-pos="left-main"]  { top: 20px; left: 10px; width: 90px; height: 120px; }
+.mouse-btn[data-pos="right-main"] { top: 20px; right: 10px; width: 90px; height: 120px; }
+.mouse-btn[data-pos="top"]        { top: 55px; left: 50%; transform: translateX(-50%); width: 50px; height: 28px; font-size: 0.55rem; }
+.mouse-btn[data-pos="middle"]     { top: 85px; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; font-size: 0.55rem; border-radius: 50%; }
+.mouse-btn[data-pos="side-back"]  { top: 200px; left: -10px; width: 55px; height: 40px; border-radius: 6px 0 0 6px; }
+.mouse-btn[data-pos="side-front"] { top: 150px; left: -10px; width: 55px; height: 40px; border-radius: 6px 0 0 6px; }
+
+/* ─── Button Config ──────────────────────────────────────────────────── */
+
+.btn-config { min-height: 300px; }
+.btn-config-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.btn-config-header .cid { font-family: monospace; color: var(--text-muted); font-size: 0.8rem; }
+
+.gesture-grid {
+  display: grid;
+  grid-template-areas: ".    up    ." "left click right" ".    down  .";
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px; max-width: 320px; margin: 0 auto 16px;
+}
+
+.gesture-slot {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s;
+  font-size: 0.75rem; min-height: 60px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+.gesture-slot:hover { border-color: var(--accent); }
+.gesture-slot.active { border-color: var(--accent); background: rgba(233,69,96,0.08); }
+.gesture-slot.has-action { border-color: var(--success); }
+.gesture-slot .dir-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+.gesture-slot .action-label { font-size: 0.75rem; color: var(--text); font-weight: 500; }
+
+.gesture-slot[data-dir="Up"]    { grid-area: up; }
+.gesture-slot[data-dir="Down"]  { grid-area: down; }
+.gesture-slot[data-dir="Left"]  { grid-area: left; }
+.gesture-slot[data-dir="Right"] { grid-area: right; }
+.gesture-slot[data-dir="None"]  { grid-area: click; }
+
+/* ─── Action Picker ──────────────────────────────────────────────────── */
+
+.action-picker { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.action-picker h3 { margin-bottom: 10px; }
+
+.action-types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+.action-type-btn {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-input); color: var(--text); cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s;
+}
+.action-type-btn:hover { border-color: var(--accent); }
+.action-type-btn.selected { border-color: var(--accent); background: rgba(233,69,96,0.15); }
+
+.system-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.system-action-btn {
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-input); color: var(--text); cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s; text-align: left;
+}
+.system-action-btn:hover { border-color: var(--accent); }
+.system-action-btn.selected { border-color: var(--success); background: rgba(74,222,128,0.08); }
+
+/* ─── Key Capture ────────────────────────────────────────────────────── */
+
+.key-capture { margin-top: 8px; }
+
+.key-capture-input {
+  width: 100%; padding: 10px 14px; background: var(--bg-input);
+  border: 2px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 0.9rem; cursor: pointer; text-align: center;
+  transition: border-color 0.15s;
+}
+.key-capture-input:focus { outline: none; border-color: var(--accent); }
+.key-capture-input.recording { border-color: var(--warning); animation: pulse 1s infinite; }
+
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+
+.key-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.key-tag {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; font-family: monospace;
+  color: var(--text-muted);
+}
+
+/* ─── Inputs ─────────────────────────────────────────────────────────── */
+
+.text-input {
+  padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: 0.85rem;
+}
+.text-input:focus { outline: none; border-color: var(--accent); }
+
+.btn-primary {
+  padding: 8px 16px; background: var(--accent); color: white; border: none;
+  border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; font-weight: 500;
+}
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-reset {
+  padding: 8px 16px; background: transparent; color: var(--warning); border: 1px solid var(--warning);
+  border-radius: var(--radius); cursor: pointer; font-size: 0.85rem; font-weight: 500;
+}
+.btn-reset:hover { background: rgba(251,191,36,0.12); }
+
+.btn-danger {
+  padding: 4px 8px; background: transparent; color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 4px; cursor: pointer; font-size: 0.8rem;
+}
+
+/* ─── Profiles ───────────────────────────────────────────────────────── */
+
+.profile-save { display: flex; gap: 6px; margin-bottom: 10px; }
+.profile-save .text-input { flex: 1; }
+
+.profile-list { display: flex; flex-direction: column; gap: 4px; }
+.profile-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 8px; background: var(--bg-input); border-radius: 4px;
+}
+.profile-name { cursor: pointer; font-size: 0.85rem; }
+.profile-name:hover { color: var(--accent); }
