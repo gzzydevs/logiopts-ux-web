@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPTS_DIR = resolve(__dirname, '../../scripts');
 
-const ALLOWED_SCRIPTS = ['apply-config.sh', 'monitor-colors.sh', 'volume.sh', 'brightness.sh', 'nightshift.sh'];
+const ALLOWED_SCRIPTS = ['apply-solaar.sh', 'reset-solaar.sh', 'monitor-colors.sh', 'volume.sh', 'brightness.sh', 'nightshift.sh'];
 
 export function runScript(name: string, args: string[] = [], stdin?: string): Promise<string> {
   if (!ALLOWED_SCRIPTS.includes(name)) {

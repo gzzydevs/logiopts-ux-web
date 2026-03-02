@@ -1,126 +1,188 @@
-import type { Action, SystemAction } from '../types';
-import KeyCapture from './KeyCapture';
+import { useState } from 'react';
+import type { SolaarAction, SystemAction } from '../types';
+import KeyCapture, { displayKeysym } from './KeyCapture';
 
 interface ActionPickerProps {
-  action: Action;
-  onChange: (action: Action) => void;
+  value: SolaarAction;
+  onChange: (action: SolaarAction) => void;
   systemActions: SystemAction[];
+  label?: string;
 }
 
-type ActionType = 'None' | 'Keypress' | 'SystemAction' | 'CycleDPI' | 'ChangeDPI';
+export default function ActionPicker({ value, onChange, systemActions, label }: ActionPickerProps) {
+  const [keyCapOpen, setKeyCapOpen] = useState(false);
+  const [cmdInput, setCmdInput] = useState(
+    value.type === 'Execute' ? value.command.join(' ') : ''
+  );
 
-function getActionType(action: Action): ActionType {
-  if (action.type === 'Keypress') return 'Keypress';
-  if (action.type === 'CycleDPI') return 'CycleDPI';
-  if (action.type === 'ChangeDPI') return 'ChangeDPI';
-  return 'None';
-}
+  const actionType = value.type;
 
-export default function ActionPicker({ action, onChange, systemActions }: ActionPickerProps) {
-  const currentType = getActionType(action);
-
-  const actionTypes: { id: ActionType; label: string }[] = [
-    { id: 'None', label: 'None' },
-    { id: 'Keypress', label: 'Shortcut' },
-    { id: 'SystemAction', label: 'System' },
-    { id: 'CycleDPI', label: 'Cycle DPI' },
-    { id: 'ChangeDPI', label: 'DPI +/-' },
-  ];
-
-  const setType = (type: ActionType) => {
+  function handleTypeChange(type: SolaarAction['type']) {
     switch (type) {
-      case 'None': onChange({ type: 'None' }); break;
-      case 'Keypress': onChange({ type: 'Keypress', keys: [] }); break;
-      case 'SystemAction':
-        if (systemActions.length > 0) onChange({ type: 'Keypress', keys: systemActions[0].keys });
+      case 'None':
+        onChange({ type: 'None' });
         break;
-      case 'CycleDPI': onChange({ type: 'CycleDPI', dpis: [800, 1600, 2400] }); break;
-      case 'ChangeDPI': onChange({ type: 'ChangeDPI', inc: 200 }); break;
+      case 'KeyPress':
+        onChange({ type: 'KeyPress', keys: [] });
+        break;
+      case 'MouseClick':
+        onChange({ type: 'MouseClick', button: 'middle', count: 'click' });
+        break;
+      case 'MouseScroll':
+        onChange({ type: 'MouseScroll', horizontal: 0, vertical: 1 });
+        break;
+      case 'Execute':
+        onChange({ type: 'Execute', command: [] });
+        setCmdInput('');
+        break;
     }
-  };
+  }
 
-  // Detect if current Keypress matches a system action
-  const matchedSA = action.type === 'Keypress'
-    ? systemActions.find((sa) => JSON.stringify(sa.keys) === JSON.stringify(action.keys))
-    : undefined;
+  function handleSystemAction(id: string) {
+    const sa = systemActions.find(a => a.id === id);
+    if (sa) onChange(sa.action);
+  }
 
-  const showSA = currentType === 'SystemAction' || !!matchedSA;
+  function handleKeyCaptureConfirm(keys: string[]) {
+    setKeyCapOpen(false);
+    onChange({ type: 'KeyPress', keys });
+  }
+
+  function handleCommandSubmit() {
+    const parts = cmdInput.trim().split(/\s+/);
+    if (parts.length > 0 && parts[0]) {
+      onChange({ type: 'Execute', command: parts });
+    }
+  }
 
   return (
     <div className="action-picker">
-      <h3>Action Type</h3>
-      <div className="action-types">
-        {actionTypes.map((at) => (
-          <button
-            key={at.id}
-            className={`action-type-btn ${
-              (at.id === currentType || (at.id === 'SystemAction' && matchedSA)) ? 'selected' : ''
-            }`}
-            onClick={() => setType(at.id)}
-          >
-            {at.label}
-          </button>
-        ))}
+      {label && <label className="action-label">{label}</label>}
+
+      {/* Action type selector */}
+      <div className="action-type-row">
+        <select
+          value={actionType}
+          onChange={e => handleTypeChange(e.target.value as SolaarAction['type'])}
+        >
+          <option value="None">None</option>
+          <option value="KeyPress">Key Press</option>
+          <option value="MouseClick">Mouse Click</option>
+          <option value="MouseScroll">Mouse Scroll</option>
+          <option value="Execute">Execute Command</option>
+        </select>
+
+        {/* Quick system action dropdown */}
+        <select
+          value=""
+          onChange={e => handleSystemAction(e.target.value)}
+          className="system-action-select"
+        >
+          <option value="">Quick Actions…</option>
+          {(['volume', 'media', 'brightness', 'system'] as const).map(cat => (
+            <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
+              {systemActions.filter(a => a.category === cat).map(a => (
+                <option key={a.id} value={a.id}>{a.label}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </div>
 
-      {currentType === 'Keypress' && !matchedSA && action.type === 'Keypress' && (
-        <div>
-          <h3>Keyboard Shortcut</h3>
-          <KeyCapture keys={action.keys} onChange={(keys) => onChange({ type: 'Keypress', keys })} />
+      {/* Type-specific controls */}
+      {actionType === 'KeyPress' && (
+        <div className="action-detail">
+          <button className="btn btn-small" onClick={() => setKeyCapOpen(true)}>
+            {value.type === 'KeyPress' && value.keys.length > 0
+              ? value.keys.map(displayKeysym).join(' + ')
+              : 'Capture Keys…'}
+          </button>
+          <KeyCapture
+            open={keyCapOpen}
+            currentKeys={value.type === 'KeyPress' ? value.keys : []}
+            onConfirm={handleKeyCaptureConfirm}
+            onCancel={() => setKeyCapOpen(false)}
+          />
         </div>
       )}
 
-      {showSA && (
-        <div>
-          <h3>System Action</h3>
-          <div className="system-actions-grid">
-            {systemActions.map((sa) => (
-              <button
-                key={sa.id}
-                className={`system-action-btn ${matchedSA?.id === sa.id ? 'selected' : ''}`}
-                onClick={() => onChange({ type: 'Keypress', keys: sa.keys })}
-                title={sa.description}
-              >
-                {sa.label}
-              </button>
-            ))}
-          </div>
+      {actionType === 'MouseClick' && value.type === 'MouseClick' && (
+        <div className="action-detail">
+          <select
+            value={value.button}
+            onChange={e => onChange({ ...value, button: e.target.value as 'left' | 'middle' | 'right' })}
+          >
+            <option value="left">Left</option>
+            <option value="middle">Middle</option>
+            <option value="right">Right</option>
+          </select>
+          <select
+            value={String(value.count)}
+            onChange={e => {
+              const v = e.target.value;
+              onChange({ ...value, count: v === 'click' ? 'click' : parseInt(v, 10) });
+            }}
+          >
+            <option value="click">Click</option>
+            <option value="2">Double Click</option>
+            <option value="3">Triple Click</option>
+          </select>
         </div>
       )}
 
-      {action.type === 'CycleDPI' && (
-        <div>
-          <h3>DPI Values</h3>
+      {actionType === 'MouseScroll' && value.type === 'MouseScroll' && (
+        <div className="action-detail">
+          <label>
+            Vertical:
+            <input
+              type="number"
+              value={value.vertical}
+              onChange={e => onChange({ ...value, vertical: parseInt(e.target.value, 10) || 0 })}
+              min={-10} max={10}
+            />
+          </label>
+          <label>
+            Horizontal:
+            <input
+              type="number"
+              value={value.horizontal}
+              onChange={e => onChange({ ...value, horizontal: parseInt(e.target.value, 10) || 0 })}
+              min={-10} max={10}
+            />
+          </label>
+        </div>
+      )}
+
+      {actionType === 'Execute' && (
+        <div className="action-detail">
           <input
             type="text"
-            className="text-input"
-            value={action.dpis.join(', ')}
-            onChange={(e) => {
-              const dpis = e.target.value.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
-              if (dpis.length > 0) onChange({ type: 'CycleDPI', dpis });
-            }}
-            placeholder="800, 1600, 2400"
+            value={cmdInput}
+            onChange={e => setCmdInput(e.target.value)}
+            onBlur={handleCommandSubmit}
+            onKeyDown={e => { if (e.key === 'Enter') handleCommandSubmit(); }}
+            placeholder="e.g. pactl set-sink-volume @DEFAULT_SINK@ +5%"
+            className="cmd-input"
           />
-          <p className="hint">Comma-separated DPI values to cycle through</p>
         </div>
       )}
 
-      {action.type === 'ChangeDPI' && (
-        <div>
-          <h3>DPI Increment</h3>
-          <input
-            type="number"
-            className="text-input"
-            value={action.inc}
-            onChange={(e) => {
-              const inc = parseInt(e.target.value, 10);
-              if (!isNaN(inc)) onChange({ type: 'ChangeDPI', inc });
-            }}
-            step={100}
-          />
-          <p className="hint">Positive = increase, negative = decrease</p>
+      {/* Current value display */}
+      {actionType !== 'None' && (
+        <div className="action-preview">
+          {formatAction(value)}
         </div>
       )}
     </div>
   );
+}
+
+function formatAction(a: SolaarAction): string {
+  switch (a.type) {
+    case 'None': return '';
+    case 'KeyPress': return `Keys: ${a.keys.map(displayKeysym).join(' + ')}`;
+    case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
+    case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
+    case 'Execute': return `Run: ${a.command.join(' ')}`;
+  }
 }

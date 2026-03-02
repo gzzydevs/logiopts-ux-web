@@ -1,144 +1,303 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { KnownDevice, SystemAction, ButtonConfig, Profile } from './types';
-import { getDevice, getSystemActions, applyConfig, resetConfig } from './hooks/useApi';
+import type { KnownDevice, ButtonConfig, SolaarAction, GestureDirection, SystemAction, SolaarConfig, Profile } from './types';
+import { fetchDevice, fetchConfig, fetchSystemActions, applyConfig, resetConfig, DeviceResponse } from './hooks/useApi';
 import MouseView from './components/MouseView';
 import ButtonConfigPanel from './components/ButtonConfig';
 import ProfileManager from './components/ProfileManager';
 
+const NONE_ACTION: SolaarAction = { type: 'None' };
+const DEFAULT_GESTURES: Record<GestureDirection, SolaarAction> = {
+  None: NONE_ACTION,
+  Up: NONE_ACTION,
+  Down: NONE_ACTION,
+  Left: NONE_ACTION,
+  Right: NONE_ACTION,
+};
+
+function buildDefaultButtonConfig(cid: number): ButtonConfig {
+  return {
+    cid,
+    gestureMode: false,
+    gestures: { ...DEFAULT_GESTURES },
+    simpleAction: NONE_ACTION,
+  };
+}
+
 export default function App() {
+  // ─── State ───────────────────────────────────────────────────────────
   const [device, setDevice] = useState<KnownDevice | null>(null);
-  const [systemActions, setSystemActions] = useState<SystemAction[]>([]);
-  const [buttonConfigs, setButtonConfigs] = useState<ButtonConfig[]>([]);
-  const [selectedCid, setSelectedCid] = useState<number | null>(null);
+  const [deviceMeta, setDeviceMeta] = useState<Pick<DeviceResponse, 'dpi' | 'divertKeys' | 'installType' | 'configDir'> | null>(null);
   const [dpi, setDpi] = useState(2400);
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [buttons, setButtons] = useState<ButtonConfig[]>([]);
+  const [selectedCid, setSelectedCid] = useState<number | null>(null);
+  const [systemActions, setSystemActions] = useState<SystemAction[]>([]);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'applying' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
 
-  useEffect(() => {
-    Promise.all([getDevice(), getSystemActions()])
-      .then(([dev, sa]) => {
-        setDevice(dev);
-        setSystemActions(sa);
-        setLoading(false);
-      })
-      .catch((err) => { setStatus(`Error: ${err.message}`); setLoading(false); });
-  }, []);
-
-  const updateButton = useCallback((cfg: ButtonConfig) => {
-    setButtonConfigs((prev) => {
-      const idx = prev.findIndex((c) => c.cid === cfg.cid);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = cfg;
-        return next;
-      }
-      return [...prev, cfg];
-    });
-  }, []);
-
-  const handleApply = async () => {
-    if (!device) return;
-    setStatus('Applying...');
+  // ─── Load device & config ────────────────────────────────────────────
+  const loadDevice = useCallback(async () => {
+    setStatus('loading');
+    setMessage('Detecting device…');
     try {
-      // Filter out None actions
-      const activeButtons = buttonConfigs.filter((b) => b.action.type !== 'None');
-      await applyConfig({
-        devices: [{
-          name: device.logidName,
-          dpi,
-          buttons: activeButtons,
-        }],
+      const [devResp, sysActions] = await Promise.all([
+        fetchDevice(),
+        fetchSystemActions(),
+      ]);
+
+      setDevice(devResp.device);
+      setDeviceMeta({
+        dpi: devResp.dpi,
+        divertKeys: devResp.divertKeys,
+        installType: devResp.installType,
+        configDir: devResp.configDir,
       });
-      setStatus('Applied!');
-      setTimeout(() => setStatus(''), 3000);
-    } catch (err: unknown) {
-      setStatus(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
-    }
-  };
+      setDpi(devResp.dpi);
+      setSystemActions(sysActions);
 
-  const handleReset = async () => {
-    if (!device) return;
-    if (!confirm('Reset all button configs to factory defaults?')) return;
-    setStatus('Resetting...');
+      // Build initial button configs
+      const btnConfigs = devResp.device.buttons.map(b => buildDefaultButtonConfig(b.cid));
+
+      // Check for gesture-mode buttons from divert-keys
+      for (const btn of btnConfigs) {
+        const divertVal = devResp.divertKeys[String(btn.cid)];
+        if (divertVal === 2) {
+          btn.gestureMode = true;
+        }
+      }
+
+      setButtons(btnConfigs);
+      if (devResp.device.buttons.length > 0) {
+        setSelectedCid(devResp.device.buttons[0].cid);
+      }
+
+      // Try to load existing rules
+      try {
+        const configResp = await fetchConfig();
+        if (configResp.rules.length > 0) {
+          // Merge existing rules into button configs
+          for (const rule of configResp.rules) {
+            if (rule.condition.type === 'MouseGesture') {
+              // Find the button in gesture mode
+              const gestureBtn = btnConfigs.find(b => b.gestureMode);
+              if (gestureBtn) {
+                const dirs = rule.condition.directions;
+                let dir: GestureDirection = 'None'; // click
+                if (dirs.length > 0) {
+                  const dirMap: Record<string, GestureDirection> = {
+                    'Mouse Up': 'Up',
+                    'Mouse Down': 'Down',
+                    'Mouse Left': 'Left',
+                    'Mouse Right': 'Right',
+                  };
+                  dir = dirMap[dirs[0]] || 'None';
+                }
+                gestureBtn.gestures[dir] = rule.action;
+              }
+            }
+          }
+          setButtons([...btnConfigs]);
+        }
+      } catch { /* no existing config, that's fine */ }
+
+      setStatus('idle');
+      setMessage('');
+      setHasChanges(false);
+    } catch (err: unknown) {
+      setStatus('error');
+      setMessage(err instanceof Error ? err.message : 'Failed to detect device');
+    }
+  }, []);
+
+  useEffect(() => { loadDevice(); }, [loadDevice]);
+
+  // ─── Button config change handler ────────────────────────────────────
+  function handleButtonChange(updated: ButtonConfig) {
+    setButtons(prev => prev.map(b => b.cid === updated.cid ? updated : b));
+    setHasChanges(true);
+  }
+
+  // ─── Apply config ────────────────────────────────────────────────────
+  async function handleApply() {
+    if (!device || !deviceMeta) return;
+    setStatus('applying');
+    setMessage('Applying configuration…');
+
     try {
-      await resetConfig(device.logidName, dpi);
-      setButtonConfigs([]);
-      setSelectedCid(null);
-      setStatus('Reset to defaults!');
-      setTimeout(() => setStatus(''), 3000);
+      // Build divert-keys map
+      const divertKeys: Record<number, 0 | 1 | 2> = {};
+      for (const btn of buttons) {
+        if (btn.gestureMode) {
+          divertKeys[btn.cid] = 2; // Mouse Gestures
+        } else if (btn.simpleAction.type !== 'None') {
+          divertKeys[btn.cid] = 1; // Diverted
+        } else {
+          divertKeys[btn.cid] = 0; // Regular
+        }
+      }
+
+      const solaarConfig: SolaarConfig = {
+        deviceName: device.solaarName,
+        unitId: device.unitId,
+        dpi,
+        divertKeys,
+        rules: [], // rules are generated server-side from buttons
+      };
+
+      await applyConfig(solaarConfig, buttons);
+      setStatus('idle');
+      setMessage('✅ Configuration applied!');
+      setHasChanges(false);
+      setTimeout(() => setMessage(''), 3000);
     } catch (err: unknown) {
-      setStatus(`Error: ${err instanceof Error ? err.message : 'unknown'}`);
+      setStatus('error');
+      setMessage(err instanceof Error ? err.message : 'Apply failed');
     }
-  };
+  }
 
-  const handleLoadProfile = (profile: Profile) => {
-    setButtonConfigs(profile.buttons);
+  // ─── Reset config ───────────────────────────────────────────────────
+  async function handleReset() {
+    setStatus('applying');
+    setMessage('Resetting configuration…');
+    try {
+      await resetConfig();
+      await loadDevice();
+      setMessage('✅ Configuration reset!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: unknown) {
+      setStatus('error');
+      setMessage(err instanceof Error ? err.message : 'Reset failed');
+    }
+  }
+
+  // ─── Profile handling ───────────────────────────────────────────────
+  function handleLoadProfile(profile: Profile) {
+    setButtons(profile.buttons);
     if (profile.dpi) setDpi(profile.dpi);
-    setStatus(`Loaded profile: ${profile.name}`);
-    setTimeout(() => setStatus(''), 3000);
-  };
+    setHasChanges(true);
+    setMessage(`Loaded profile "${profile.name}"`);
+    setTimeout(() => setMessage(''), 3000);
+  }
 
-  const selectedButton = device?.buttons.find((b) => b.cid === selectedCid) ?? null;
+  // ─── Selected button ────────────────────────────────────────────────
+  const selectedButton = device?.buttons.find(b => b.cid === selectedCid);
+  const selectedConfig = buttons.find(b => b.cid === selectedCid);
 
-  if (loading) return <div className="loading">Loading...</div>;
-  if (!device) return <div className="loading">Device not found</div>;
-
+  // ─── Render ──────────────────────────────────────────────────────────
   return (
     <div className="app">
       <header className="app-header">
-        <div className="title-area">
-          <h1>🖱 LogiTux</h1>
-          <h2>{device.displayName} Configuration</h2>
-        </div>
-        <div className="actions">
-          <div className="dpi-control">
-            <label>DPI:</label>
-            <input
-              type="number"
-              className="text-input dpi-input"
-              value={dpi}
-              onChange={(e) => setDpi(Math.max(device.minDpi, Math.min(device.maxDpi, parseInt(e.target.value) || device.minDpi)))}
-              min={device.minDpi}
-              max={device.maxDpi}
-              step={device.dpiStep}
-            />
-          </div>
-          <button className="btn-primary" onClick={handleApply}>Apply</button>
-          <button className="btn-reset" onClick={handleReset}>Reset</button>
-          {status && <span className="status">{status}</span>}
-        </div>
+        <h1>🖱️ LogiTux</h1>
+        <span className="subtitle">Solaar Mouse Configuration</span>
       </header>
 
-      <div className="main-grid">
-        <div className="left-col">
+      {message && (
+        <div className={`status-bar ${status}`}>
+          {message}
+        </div>
+      )}
+
+      <div className="app-content">
+        {/* Left panel: mouse + DPI */}
+        <aside className="left-panel">
           <MouseView
-            buttons={device.buttons}
-            configs={buttonConfigs}
+            device={device}
             selectedCid={selectedCid}
             onSelectButton={setSelectedCid}
           />
-          <ProfileManager
-            deviceName={device.logidName}
-            dpi={dpi}
-            buttons={buttonConfigs}
-            onLoad={handleLoadProfile}
-          />
-        </div>
-        <div className="right-col">
-          {selectedButton ? (
+
+          {device && (
+            <div className="dpi-control">
+              <label>
+                DPI: <strong>{dpi}</strong>
+              </label>
+              <input
+                type="range"
+                min={device.minDpi}
+                max={device.maxDpi}
+                step={device.dpiStep}
+                value={dpi}
+                onChange={e => { setDpi(parseInt(e.target.value, 10)); setHasChanges(true); }}
+              />
+            </div>
+          )}
+
+          {/* Button list */}
+          {device && (
+            <div className="button-list">
+              {device.buttons.map(btn => {
+                const conf = buttons.find(b => b.cid === btn.cid);
+                const isActive = conf && (conf.gestureMode || conf.simpleAction.type !== 'None');
+                return (
+                  <button
+                    key={btn.cid}
+                    className={`btn-list-item ${btn.cid === selectedCid ? 'selected' : ''} ${isActive ? 'active' : ''}`}
+                    onClick={() => setSelectedCid(btn.cid)}
+                  >
+                    <span className="btn-name">{btn.name}</span>
+                    {isActive && <span className="active-dot">●</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </aside>
+
+        {/* Right panel: button config */}
+        <main className="right-panel">
+          {selectedButton && selectedConfig ? (
             <ButtonConfigPanel
               button={selectedButton}
-              config={buttonConfigs.find((c) => c.cid === selectedButton.cid)}
-              onChange={updateButton}
+              config={selectedConfig}
+              onChange={handleButtonChange}
               systemActions={systemActions}
             />
           ) : (
-            <div className="card placeholder">
-              <p>Select a button on the mouse to configure it</p>
+            <div className="empty-state">
+              {status === 'loading' ? (
+                <p>Detecting device…</p>
+              ) : status === 'error' ? (
+                <div>
+                  <p>⚠️ {message}</p>
+                  <button className="btn btn-primary" onClick={loadDevice}>Retry</button>
+                </div>
+              ) : (
+                <p>Select a button to configure</p>
+              )}
             </div>
           )}
-        </div>
+        </main>
       </div>
+
+      {/* Footer actions */}
+      <footer className="app-footer">
+        <div className="footer-left">
+          {device && (
+            <ProfileManager
+              deviceName={device.solaarName}
+              currentDpi={dpi}
+              currentButtons={buttons}
+              onLoadProfile={handleLoadProfile}
+            />
+          )}
+        </div>
+        <div className="footer-right">
+          <button
+            className="btn btn-danger"
+            onClick={handleReset}
+            disabled={status === 'applying'}
+          >
+            Reset
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleApply}
+            disabled={status === 'applying' || !hasChanges}
+          >
+            {status === 'applying' ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

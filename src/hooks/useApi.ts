@@ -1,60 +1,98 @@
-import type { KnownDevice, SystemAction, LogidConfig, Profile, ApiResponse } from '../types';
+import type {
+  ApiResponse,
+  KnownDevice,
+  SolaarConfig,
+  SolaarStatus,
+  SolaarInstallType,
+  ButtonConfig,
+  SystemAction,
+  Profile,
+  SolaarRule,
+} from '../types';
 
 const BASE = '/api';
 
-async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
-  const res = await fetch(BASE + url, {
+async function api<T>(url: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
-  const json = (await res.json()) as ApiResponse<T>;
+  const json: ApiResponse<T> = await res.json();
   if (!json.ok) throw new Error(json.error || 'API error');
   return json.data as T;
 }
 
-export function getDevice() {
-  return fetchJson<KnownDevice>('/device');
+// ─── Device ──────────────────────────────────────────────────────────────────
+
+export interface DeviceResponse {
+  device: KnownDevice;
+  dpi: number;
+  divertKeys: Record<string, number>;
+  installType: SolaarInstallType;
+  configDir: string;
 }
 
-export function getSystemActions() {
-  return fetchJson<SystemAction[]>('/system-actions');
+export function fetchDevice(): Promise<DeviceResponse> {
+  return api<DeviceResponse>('/device');
 }
 
-export function getConfig() {
-  return fetchJson<{ raw: string }>('/config');
+export function fetchDeviceStatus(): Promise<SolaarStatus> {
+  return api<SolaarStatus>('/device/status');
 }
 
-export function applyConfig(config: LogidConfig) {
-  return fetchJson<{ applied: boolean; config: string }>('/config', {
+export function fetchSystemActions(): Promise<SystemAction[]> {
+  return api<SystemAction[]>('/device/system-actions');
+}
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+export interface ConfigResponse {
+  configYaml: string;
+  rulesYaml: string;
+  rules: SolaarRule[];
+  configDir: string;
+  installType: SolaarInstallType;
+}
+
+export function fetchConfig(): Promise<ConfigResponse> {
+  return api<ConfigResponse>('/config');
+}
+
+export function applyConfig(
+  solaarConfig: SolaarConfig,
+  buttons: ButtonConfig[]
+): Promise<{ output: string }> {
+  return api<{ output: string }>('/config', {
     method: 'POST',
-    body: JSON.stringify(config),
+    body: JSON.stringify({ solaarConfig, buttons }),
   });
 }
 
-export function resetConfig(deviceName: string, dpi: number) {
-  return fetchJson<{ reset: boolean }>('/config/reset', {
-    method: 'POST',
-    body: JSON.stringify({ deviceName, dpi }),
-  });
+export function resetConfig(): Promise<{ output: string }> {
+  return api<{ output: string }>('/config/reset', { method: 'POST' });
 }
 
-export function getProfiles() {
-  return fetchJson<Profile[]>('/profiles');
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+export function fetchProfiles(): Promise<Profile[]> {
+  return api<Profile[]>('/profiles');
 }
 
-export function saveProfile(profile: Profile) {
-  return fetchJson<Profile>('/profiles', {
+export function saveProfile(profile: Profile): Promise<Profile> {
+  return api<Profile>('/profiles', {
     method: 'POST',
     body: JSON.stringify(profile),
   });
 }
 
-export function deleteProfile(id: string) {
-  return fetchJson<void>(`/profiles/${id}`, { method: 'DELETE' });
+export function deleteProfile(id: string): Promise<void> {
+  return api<void>(`/profiles/${id}`, { method: 'DELETE' });
 }
 
-export function runAction(script: string, args: string[] = []) {
-  return fetchJson<{ output: string }>(`/actions/${script}`, {
+// ─── Actions (script runner) ─────────────────────────────────────────────────
+
+export function runAction(script: string, args: string[] = []): Promise<{ output: string }> {
+  return api<{ output: string }>(`/actions/${script}`, {
     method: 'POST',
     body: JSON.stringify({ args }),
   });

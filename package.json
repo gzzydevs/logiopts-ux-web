@@ -10,10 +10,12 @@
     "start": "node dist/server/index.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",

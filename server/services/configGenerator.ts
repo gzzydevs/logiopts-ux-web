@@ -1,129 +1,239 @@
 /**
- * Generates logid.cfg in libconfig format from our JSON model.
+ * Generates Solaar config.yaml and rules.yaml from our ButtonConfig model.
  */
-import type { LogidConfig, DeviceConfig, ButtonConfig, Action, GestureConfig } from '../types.js';
+import yaml from 'js-yaml';
+import type { SolaarConfig, SolaarRule, SolaarAction, ButtonConfig, GestureDirection } from '../types.js';
 
-export function generateLogidCfg(config: LogidConfig): string {
-  const lines: string[] = [];
-  lines.push('devices: (');
-  const devStrings = config.devices.map((device) => serializeDevice(device, '  '));
-  lines.push(devStrings.join(',\n'));
-  lines.push(');');
-  return lines.join('\n') + '\n';
-}
+// ─── Solaar rules.yaml generation ────────────────────────────────────────────
 
-function serializeDevice(dev: DeviceConfig, indent: string): string {
-  const lines: string[] = [];
-  lines.push(`${indent}{`);
-  const i2 = indent + '  ';
+/** Direction string as Solaar expects it in MouseGesture conditions */
+const DIRECTION_MAP: Record<GestureDirection, string | null> = {
+  None: null,   // click = empty list means just a diverted click
+  Up: 'Mouse Up',
+  Down: 'Mouse Down',
+  Left: 'Mouse Left',
+  Right: 'Mouse Right',
+};
 
-  lines.push(`${i2}name: "${dev.name}";`);
-
-  if (dev.dpi !== undefined) {
-    lines.push(`${i2}dpi: ${dev.dpi};`);
-  }
-
-  if (dev.smartshift) {
-    lines.push(`${i2}smartshift: {`);
-    if (dev.smartshift.on !== undefined) lines.push(`${i2}  on: ${dev.smartshift.on};`);
-    if (dev.smartshift.threshold !== undefined) lines.push(`${i2}  threshold: ${dev.smartshift.threshold};`);
-    if (dev.smartshift.defaultThreshold !== undefined) lines.push(`${i2}  default_threshold: ${dev.smartshift.defaultThreshold};`);
-    lines.push(`${i2}};`);
-  }
-
-  if (dev.hiresscroll) {
-    lines.push(`${i2}hiresscroll: {`);
-    if (dev.hiresscroll.hires !== undefined) lines.push(`${i2}  hires: ${dev.hiresscroll.hires};`);
-    if (dev.hiresscroll.invert !== undefined) lines.push(`${i2}  invert: ${dev.hiresscroll.invert};`);
-    if (dev.hiresscroll.target !== undefined) lines.push(`${i2}  target: ${dev.hiresscroll.target};`);
-    lines.push(`${i2}};`);
-  }
-
-  if (dev.buttons.length > 0) {
-    lines.push(`${i2}buttons: (`);
-    const btnStrings = dev.buttons.map((btn) => serializeButton(btn, i2 + '  '));
-    lines.push(btnStrings.join(',\n'));
-    lines.push(`${i2});`);
-  }
-
-  lines.push(`${indent}}`);
-  return lines.join('\n');
-}
-
-function serializeButton(btn: ButtonConfig, indent: string): string {
-  const lines: string[] = [];
-  lines.push(`${indent}{`);
-  const i2 = indent + '  ';
-  lines.push(`${i2}cid: 0x${btn.cid.toString(16).padStart(4, '0')};`);
-  const actionStr = serializeAction(btn.action, i2);
-  lines.push(`${i2}action: ${actionStr};`);
-  lines.push(`${indent}}`);
-  return lines.join('\n');
-}
-
-function serializeAction(action: Action, indent: string): string {
+/** Convert one SolaarAction to the YAML representation Solaar expects */
+function actionToYaml(action: SolaarAction): any {
   switch (action.type) {
     case 'None':
-      return '{ type: "None"; }';
-
-    case 'Keypress': {
-      const keys = action.keys.map((k) => `"${k}"`).join(', ');
-      return `{ type: "Keypress"; keys: [${keys}]; }`;
-    }
-
-    case 'Gestures': {
-      const lines: string[] = [];
-      const i2 = indent + '  ';
-      lines.push('{');
-      lines.push(`${i2}type: "Gestures";`);
-      lines.push(`${i2}gestures: (`);
-      const gestureStrings = action.gestures.map((g) => serializeGesture(g, i2 + '  '));
-      lines.push(gestureStrings.join(',\n'));
-      lines.push(`${i2});`);
-      lines.push(`${indent}}`);
-      return lines.join('\n');
-    }
-
-    case 'ToggleSmartShift':
-      return '{ type: "ToggleSmartShift"; }';
-
-    case 'ToggleHiresScroll':
-      return '{ type: "ToggleHiresScroll"; }';
-
-    case 'CycleDPI': {
-      const dpis = action.dpis.join(', ');
-      return `{ type: "CycleDPI"; dpis: [${dpis}]; }`;
-    }
-
-    case 'ChangeDPI':
-      return `{ type: "ChangeDPI"; inc: ${action.inc}; }`;
-
-    case 'ChangeHost':
-      if (typeof action.host === 'number') {
-        return `{ type: "ChangeHost"; host: ${action.host}; }`;
-      }
-      return `{ type: "ChangeHost"; host: "${action.host}"; }`;
-
+      return null;
+    case 'KeyPress':
+      // Solaar syntax: [key1, key2, ...]  — just the key list
+      return action.keys;
+    case 'MouseClick':
+      return { 'mouse-click': action.button, 'count': action.count };
+    case 'MouseScroll':
+      return { 'mouse-scroll': [action.horizontal, action.vertical] };
+    case 'Execute':
+      return action.command;
     default:
-      return '{ type: "None"; }';
+      return null;
   }
 }
 
-function serializeGesture(gesture: GestureConfig, indent: string): string {
-  const lines: string[] = [];
-  const i2 = indent + '  ';
-  lines.push(`${indent}{`);
-  lines.push(`${i2}direction: "${gesture.direction}";`);
+/** Build a single Solaar rule entry (used inside rules.yaml) */
+function buildRule(condition: SolaarRule['condition'], action: SolaarAction, comment?: string): any {
+  const rule: any[] = [];
 
-  const mode = gesture.mode ?? 'OnRelease';
-  lines.push(`${i2}mode: "${mode}";`);
-
-  if ((mode === 'OnThreshold' || mode === 'OnInterval' || mode === 'OnFewPixels') && gesture.threshold !== undefined) {
-    lines.push(`${i2}threshold: ${gesture.threshold};`);
+  if (comment) {
+    rule.push(comment);
   }
 
-  const actionStr = serializeAction(gesture.action, i2);
-  lines.push(`${i2}action: ${actionStr};`);
-  lines.push(`${indent}}`);
-  return lines.join('\n');
+  // Condition
+  if (condition.type === 'MouseGesture') {
+    // ['Mouse Gesture', ...directions] or ['Mouse Gesture'] for click
+    const mg = ['Mouse Gesture', ...condition.directions];
+    rule.push(mg);
+  } else if (condition.type === 'Key') {
+    rule.push({ 'Key': [condition.key, condition.event || 'pressed'] });
+  }
+
+  // Action
+  const yamlAction = actionToYaml(action);
+  if (yamlAction !== null) {
+    // For KeyPress: wrap in KeyPress action type
+    if (action.type === 'KeyPress') {
+      rule.push({ 'KeyPress': yamlAction });
+    } else if (action.type === 'MouseClick') {
+      rule.push({ 'MouseClick': [action.button, action.count] });
+    } else if (action.type === 'MouseScroll') {
+      rule.push({ 'MouseScroll': [action.horizontal, action.vertical] });
+    } else if (action.type === 'Execute') {
+      rule.push({ 'Execute': yamlAction });
+    }
+  }
+
+  return { Rule: rule };
+}
+
+/** Generate rules.yaml content from an array of ButtonConfig */
+export function generateRulesYaml(buttons: ButtonConfig[]): string {
+  const rules: any[] = [];
+
+  for (const btn of buttons) {
+    if (btn.gestureMode) {
+      // Gesture mode: generate one rule per direction that has an action
+      for (const [dir, action] of Object.entries(btn.gestures)) {
+        if (action.type === 'None') continue;
+        const direction = dir as GestureDirection;
+        const dirs = DIRECTION_MAP[direction];
+        const condition = {
+          type: 'MouseGesture' as const,
+          directions: dirs ? [dirs] : [],  // [] = click
+        };
+        const comment = `CID ${btn.cid} — ${direction === 'None' ? 'Click' : direction}`;
+        rules.push(buildRule(condition, action, comment));
+      }
+    } else if (btn.simpleAction.type !== 'None') {
+      // Simple diverted button: fire on diverted key press
+      // For diverted (non-gesture) buttons we use a key condition
+      // But simple divert rules also use Mouse Gesture with empty directions for a click
+      const condition = {
+        type: 'MouseGesture' as const,
+        directions: [] as string[],
+      };
+      rules.push(buildRule(condition, btn.simpleAction, `CID ${btn.cid} — Click`));
+    }
+  }
+
+  // Solaar rules.yaml is a single document with a top-level list %YAML 1.3
+  const content = yaml.dump(rules, {
+    flowLevel: 3,
+    lineWidth: 200,
+    noRefs: true,
+  });
+
+  return `%YAML 1.3\n---\n${content}`;
+}
+
+// ─── Solaar config.yaml generation ───────────────────────────────────────────
+
+/**
+ * Merge our settings into an existing Solaar config.yaml.
+ * We only touch the specific device's divert-keys and dpi settings.
+ */
+export function generateConfigYaml(
+  existingYaml: string,
+  config: SolaarConfig
+): string {
+  let doc: any;
+  try {
+    doc = yaml.load(existingYaml) || {};
+  } catch {
+    doc = {};
+  }
+
+  // Ensure top-level structure
+  if (typeof doc !== 'object') doc = {};
+
+  // Find or create the device entry under its unit ID
+  // Solaar config.yaml structure varies — look for the device key
+  // The config stores per-device settings, keyed by either name or unit ID
+  // We need to update divert-keys and sensitivity (DPI)
+  
+  // Look through all keys for our device (by unit ID or device name)
+  let deviceKey: string | undefined;
+  for (const key of Object.keys(doc)) {
+    const entry = doc[key];
+    if (typeof entry === 'object' && entry !== null) {
+      // Check if this entry has our unit ID or matches device name
+      if (key === config.unitId || key === config.deviceName || 
+          entry._unitId === config.unitId) {
+        deviceKey = key;
+        break;
+      }
+    }
+  }
+
+  if (!deviceKey) {
+    // Create new device entry keyed by unit ID
+    deviceKey = config.unitId;
+    doc[deviceKey] = {};
+  }
+
+  const dev = doc[deviceKey];
+
+  // Set divert-keys
+  const divertKeys: Record<string, number> = {};
+  for (const [cid, mode] of Object.entries(config.divertKeys)) {
+    divertKeys[cid] = mode;
+  }
+  dev['divert-keys'] = divertKeys;
+
+  // Set DPI
+  dev['dpi'] = config.dpi;
+
+  return yaml.dump(doc, { lineWidth: 200, noRefs: true });
+}
+
+/**
+ * Parse an existing rules.yaml back into SolaarRule[] 
+ * (for reading current config).
+ */
+export function parseRulesYaml(content: string): SolaarRule[] {
+  if (!content.trim()) return [];
+
+  let docs: any;
+  try {
+    docs = yaml.load(content.replace(/^%YAML.*\n---\n/, ''));
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(docs)) return [];
+
+  const rules: SolaarRule[] = [];
+
+  for (const item of docs) {
+    if (!item || !item.Rule || !Array.isArray(item.Rule)) continue;
+    const parts = item.Rule;
+    let comment: string | undefined;
+    let condition: SolaarRule['condition'] | undefined;
+    let action: SolaarAction = { type: 'None' };
+
+    for (const part of parts) {
+      // String = comment
+      if (typeof part === 'string') {
+        comment = part;
+        continue;
+      }
+
+      // Array starting with 'Mouse Gesture' = MouseGesture condition
+      if (Array.isArray(part) && part[0] === 'Mouse Gesture') {
+        condition = {
+          type: 'MouseGesture',
+          directions: part.slice(1),
+        };
+        continue;
+      }
+
+      // Object with known action keys
+      if (typeof part === 'object' && part !== null) {
+        if (part.Key) {
+          condition = {
+            type: 'Key',
+            key: part.Key[0],
+            event: part.Key[1],
+          };
+        } else if (part.KeyPress) {
+          action = { type: 'KeyPress', keys: part.KeyPress };
+        } else if (part.MouseClick) {
+          action = { type: 'MouseClick', button: part.MouseClick[0], count: part.MouseClick[1] };
+        } else if (part.MouseScroll) {
+          action = { type: 'MouseScroll', horizontal: part.MouseScroll[0], vertical: part.MouseScroll[1] };
+        } else if (part.Execute) {
+          action = { type: 'Execute', command: part.Execute };
+        }
+      }
+    }
+
+    if (condition) {
+      rules.push({ comment, condition, action });
+    }
+  }
+
+  return rules;
 }

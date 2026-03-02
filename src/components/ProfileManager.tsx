@@ -1,64 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { Profile, ButtonConfig } from '../types';
-import { getProfiles, saveProfile, deleteProfile } from '../hooks/useApi';
+import { fetchProfiles, saveProfile, deleteProfile } from '../hooks/useApi';
 
 interface ProfileManagerProps {
   deviceName: string;
-  dpi: number;
-  buttons: ButtonConfig[];
-  onLoad: (profile: Profile) => void;
+  currentDpi: number;
+  currentButtons: ButtonConfig[];
+  onLoadProfile: (profile: Profile) => void;
 }
 
-export default function ProfileManager({ deviceName, dpi, buttons, onLoad }: ProfileManagerProps) {
+export default function ProfileManager({ deviceName, currentDpi, currentButtons, onLoadProfile }: ProfileManagerProps) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [name, setName] = useState('');
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const refresh = () => { getProfiles().then(setProfiles).catch(console.error); };
-  useEffect(refresh, []);
+  async function loadProfiles() {
+    setLoading(true);
+    try {
+      const data = await fetchProfiles();
+      setProfiles(data.filter(p => p.deviceName === deviceName));
+    } catch (err) {
+      console.error('Failed to load profiles:', err);
+    }
+    setLoading(false);
+  }
 
-  const handleSave = async () => {
-    if (!name.trim()) return;
-    const profile: Profile = {
-      id: '',
-      name: name.trim(),
-      deviceLogidName: deviceName,
-      dpi,
-      buttons,
-      createdAt: '',
-      updatedAt: '',
-    };
-    await saveProfile(profile);
-    setName('');
-    refresh();
-  };
+  async function handleOpen() {
+    setOpen(true);
+    await loadProfiles();
+  }
 
-  const handleDelete = async (id: string) => {
-    await deleteProfile(id);
-    refresh();
-  };
+  async function handleSave() {
+    if (!newName.trim()) return;
+    setLoading(true);
+    try {
+      const profile: Profile = {
+        id: '',
+        name: newName.trim(),
+        deviceName,
+        dpi: currentDpi,
+        buttons: currentButtons,
+        createdAt: '',
+        updatedAt: '',
+      };
+      await saveProfile(profile);
+      setNewName('');
+      await loadProfiles();
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+    }
+    setLoading(false);
+  }
+
+  async function handleDelete(id: string) {
+    setLoading(true);
+    try {
+      await deleteProfile(id);
+      await loadProfiles();
+    } catch (err) {
+      console.error('Failed to delete profile:', err);
+    }
+    setLoading(false);
+  }
+
+  if (!open) {
+    return (
+      <button className="btn btn-secondary" onClick={handleOpen}>
+        📁 Profiles
+      </button>
+    );
+  }
 
   return (
-    <div className="profiles card">
-      <h3>Profiles</h3>
-      <div className="profile-save">
-        <input
-          type="text"
-          className="text-input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Profile name"
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-        />
-        <button className="btn-primary" onClick={handleSave}>Save</button>
-      </div>
-      <div className="profile-list">
-        {profiles.map((p) => (
-          <div key={p.id} className="profile-item">
-            <span className="profile-name" onClick={() => onLoad(p)}>{p.name}</span>
-            <button className="btn-danger" onClick={() => handleDelete(p.id)}>×</button>
-          </div>
-        ))}
-        {profiles.length === 0 && <p className="hint">No profiles saved yet</p>}
+    <div className="modal-overlay">
+      <div className="modal profile-manager">
+        <h3>Profiles — {deviceName}</h3>
+
+        {/* Save new */}
+        <div className="profile-save-row">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Profile name…"
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+          />
+          <button className="btn btn-primary" onClick={handleSave} disabled={loading || !newName.trim()}>
+            Save Current
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="profile-list">
+          {loading && <p>Loading…</p>}
+          {!loading && profiles.length === 0 && <p className="hint">No saved profiles</p>}
+          {profiles.map(p => (
+            <div key={p.id} className="profile-item">
+              <div className="profile-item-info">
+                <strong>{p.name}</strong>
+                <span className="profile-meta">
+                  DPI: {p.dpi || '—'} · {p.buttons.length} buttons · {new Date(p.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="profile-item-actions">
+                <button className="btn btn-small" onClick={() => { onLoadProfile(p); setOpen(false); }}>
+                  Load
+                </button>
+                <button className="btn btn-small btn-danger" onClick={() => handleDelete(p.id)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button className="btn btn-secondary" onClick={() => setOpen(false)}>Close</button>
       </div>
     </div>
   );
