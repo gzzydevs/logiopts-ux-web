@@ -29,11 +29,11 @@ cat > "$RULES_FILE" << 'EOF'
 ...
 ---
 - MouseGesture: [Forward Button, Mouse Right]
-- KeyPress: [Super_L, Shift_L, Right]
+- KeyPress: [l]
 ...
 ---
 - MouseGesture: [Forward Button, Mouse Left]
-- KeyPress: [Super_L, Shift_L, Left]
+- KeyPress: [j]
 ...
 ---
 - MouseGesture: [Forward Button, Mouse Down]

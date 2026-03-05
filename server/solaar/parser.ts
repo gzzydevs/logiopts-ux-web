@@ -67,14 +67,24 @@ function macroToYamlEntry(macro: Macro): { key: string; value: any } | null {
     }
 }
 
+// Solaar trigger events that should NOT be treated as keys
+const SOLAAR_EVENTS = new Set(['click', 'depress', 'release']);
+
 /** Parse a single YAML action entry back into a Macro */
 function yamlEntryToMacro(item: any): Macro | null {
     if (!item || typeof item !== 'object') return null;
 
     if ('KeyPress' in item) {
         const val = item.KeyPress;
-        const keys = Array.isArray(val) ? val.map(String) : [String(val)];
-        return { type: 'KeyPress', keys };
+        // val can be: a string, an array of strings, or an array of [array, string]
+        // e.g. [[Control_L, Shift_L, t], click] → keys=["Control_L,Shift_L,t"], stripping "click" event
+        let rawKeys: string[] = Array.isArray(val) ? val.map((k: any) =>
+            Array.isArray(k) ? k.join(',') : String(k)
+        ) : [String(val)];
+        // Filter out Solaar trigger events (click, depress, release)
+        rawKeys = rawKeys.filter(k => !SOLAAR_EVENTS.has(k));
+        if (rawKeys.length === 0) rawKeys = ['click']; // fallback if only event was present
+        return { type: 'KeyPress', keys: rawKeys };
     }
 
     if ('MouseClick' in item) {
@@ -208,9 +218,14 @@ export function solaarYamlToJson(
             if (!item || typeof item !== 'object') continue;
 
             // MouseGesture condition
+            // Can be a string (e.g. "Back Button" for click) or array (["Back Button", "Mouse Up"])
             if ('MouseGesture' in item) {
                 const mg = item.MouseGesture;
-                if (Array.isArray(mg) && mg.length >= 1) {
+                if (typeof mg === 'string') {
+                    // Simple click gesture: MouseGesture: "Back Button"
+                    buttonName = mg;
+                    direction = 'click';
+                } else if (Array.isArray(mg) && mg.length >= 1) {
                     buttonName = String(mg[0]);
                     if (mg.length >= 2) {
                         const dirStr = String(mg[1]);

@@ -180,6 +180,30 @@
     align-items: center;
 }
 
+.key-picker-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+}
+
+.key-picker-row .btn-small {
+    flex: 1;
+}
+
+.btn-ghost-sm {
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    font-size: 0.75rem !important;
+    flex: 0 0 auto !important;
+}
+
+.btn-ghost-sm:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important;
+}
+
 .action-detail select,
 .action-detail input {
     background: rgba(0, 0, 0, 0.3);

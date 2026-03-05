@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { SolaarAction, SystemAction } from '../types';
-import KeyCapture, { displayKeysym } from './KeyCapture';
+import KeyCapture from './KeyCapture';
+import ComboBuilder from './ComboBuilder';
 import { useAppContext } from '../context/AppContext';
+import { formatKeysym } from '../utils/keyDisplay';
 
 interface ActionPickerProps {
   value: SolaarAction;
@@ -12,6 +14,7 @@ interface ActionPickerProps {
 
 export default function ActionPicker({ value, onChange, systemActions, label }: ActionPickerProps) {
   const [keyCapOpen, setKeyCapOpen] = useState(false);
+  const [comboOpen, setComboOpen] = useState(false);
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
@@ -99,11 +102,22 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       {/* Type-specific controls */}
       {actionType === 'KeyPress' && (
         <div className="action-detail">
-          <button className="btn btn-small" onClick={() => setKeyCapOpen(true)}>
-            {value.type === 'KeyPress' && value.keys.length > 0
-              ? value.keys.map(displayKeysym).join(' + ')
-              : 'Capture Keys…'}
-          </button>
+          <div className="key-picker-row">
+            <button className="btn btn-small" onClick={() => setComboOpen(true)}>
+              {value.type === 'KeyPress' && value.keys.length > 0
+                ? value.keys.map(formatKeysym).join(' + ')
+                : 'Pick Keys…'}
+            </button>
+            <button className="btn btn-small btn-ghost-sm" onClick={() => setKeyCapOpen(true)} title="Listen for key press">
+              🎹 Listen
+            </button>
+          </div>
+          <ComboBuilder
+            open={comboOpen}
+            currentKeys={value.type === 'KeyPress' ? value.keys : []}
+            onConfirm={(keys) => { setComboOpen(false); onChange({ type: 'KeyPress', keys }); }}
+            onCancel={() => setComboOpen(false)}
+          />
           <KeyCapture
             open={keyCapOpen}
             currentKeys={value.type === 'KeyPress' ? value.keys : []}
@@ -218,7 +232,7 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
 function formatAction(a: SolaarAction): string {
   switch (a.type) {
     case 'None': return '';
-    case 'KeyPress': return `Keys: ${a.keys.map(displayKeysym).join(' + ')}`;
+    case 'KeyPress': return `Keys: ${a.keys.map(formatKeysym).join(' + ')}`;
     case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
     case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
     case 'Execute': return `Run: ${a.command.join(' ')}`;
