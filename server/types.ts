@@ -131,3 +131,24 @@ export interface SolaarStatus {
   configDir: string;
   version: string;
 }
+
+// ─── Script (DB-backed) ──────────────────────────────────────────────────────
+
+export interface Script {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  executable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Bootstrap (initial load) ────────────────────────────────────────────────
+
+export interface BootstrapData {
+  devices: KnownDevice[];
+  profiles: Profile[];
+  configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
+  scripts: Script[];
+}

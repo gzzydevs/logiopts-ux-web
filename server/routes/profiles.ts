@@ -1,40 +1,34 @@
+/**
+ * Profile routes — CRUD backed by SQLite.
+ *
+ * Replaces the previous file-based JSON storage in data/profiles/.
+ */
+
 import { Router } from 'express';
-import { readFile, writeFile, readdir, unlink, mkdir } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import type { Profile } from '../types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROFILES_DIR = resolve(__dirname, '../../data/profiles');
-
-async function ensureDir() {
-  await mkdir(PROFILES_DIR, { recursive: true });
-}
+import type { Profile } from '../types';
+import {
+  createProfile as dbCreate,
+  updateProfile as dbUpdate,
+  getAllProfiles as dbGetAll,
+  getProfileById as dbGetById,
+  deleteProfile as dbDelete,
+} from '../db/repositories/profile.repo';
+import {
+  updateConfigFromUI,
+  persistConfig,
+} from '../state/memory-store';
 
 const router = Router();
 
+/** Get all profiles (exported so other modules can use it) */
 export async function getAllProfiles(): Promise<Profile[]> {
-  try {
-    await ensureDir();
-    const files = await readdir(PROFILES_DIR);
-    const profiles: Profile[] = [];
-    for (const f of files) {
-      if (!f.endsWith('.json')) continue;
-      const data = await readFile(resolve(PROFILES_DIR, f), 'utf-8');
-      try {
-        profiles.push(JSON.parse(data));
-      } catch { }
-    }
-    return profiles.sort((a, b) => a.name.localeCompare(b.name));
-  } catch {
-    return [];
-  }
+  return dbGetAll();
 }
 
 // GET /api/profiles
 router.get('/profiles', async (_req, res) => {
   try {
-    const profiles = await getAllProfiles();
+    const profiles = dbGetAll();
     res.json({ ok: true, data: profiles });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -42,16 +36,68 @@ router.get('/profiles', async (_req, res) => {
   }
 });
 
-// POST /api/profiles
+// GET /api/profiles/:id
+router.get('/profiles/:id', async (req, res) => {
+  try {
+    const profile = dbGetById(req.params.id);
+    if (!profile) {
+      return res.status(404).json({ ok: false, error: 'Profile not found' });
+    }
+    res.json({ ok: true, data: profile });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+// POST /api/profiles — create new profile
 router.post('/profiles', async (req, res) => {
   try {
-    await ensureDir();
     const profile = req.body as Profile;
     if (!profile.id) profile.id = crypto.randomUUID();
-    profile.updatedAt = new Date().toISOString();
-    if (!profile.createdAt) profile.createdAt = profile.updatedAt;
-    await writeFile(resolve(PROFILES_DIR, `${profile.id}.json`), JSON.stringify(profile, null, 2));
-    res.json({ ok: true, data: profile });
+
+    const created = dbCreate(profile);
+
+    // Generate and cache the Solaar config
+    if (created.buttons && created.buttons.length > 0) {
+      updateConfigFromUI(
+        created.id,
+        created.buttons,
+        created.deviceName,
+        created.name,
+      );
+      persistConfig(created.id);
+    }
+
+    res.json({ ok: true, data: created });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+// PUT /api/profiles/:id — update existing profile
+router.put('/profiles/:id', async (req, res) => {
+  try {
+    const changes = req.body as Partial<Profile>;
+    const updated = dbUpdate(req.params.id, changes);
+
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: 'Profile not found' });
+    }
+
+    // Regenerate and persist config if buttons changed
+    if (changes.buttons) {
+      updateConfigFromUI(
+        updated.id,
+        updated.buttons,
+        updated.deviceName,
+        updated.name,
+      );
+      persistConfig(updated.id);
+    }
+
+    res.json({ ok: true, data: updated });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ ok: false, error: msg });
@@ -61,7 +107,7 @@ router.post('/profiles', async (req, res) => {
 // DELETE /api/profiles/:id
 router.delete('/profiles/:id', async (req, res) => {
   try {
-    await unlink(resolve(PROFILES_DIR, `${req.params.id}.json`));
+    dbDelete(req.params.id);
     res.json({ ok: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';

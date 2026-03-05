@@ -29,6 +29,9 @@ npm-debug.log*
 
 # Runtime data
 data/profiles/*.json
+data/*.db
+data/*.db-wal
+data/*.db-shm
 
 # TypeScript cache
 *.tsbuildinfo

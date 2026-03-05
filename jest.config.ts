@@ -3,7 +3,7 @@ import type { Config } from 'jest';
 const config: Config = {
     preset: 'ts-jest',
     testEnvironment: 'node',
-    roots: ['<rootDir>/server/solaar'],
+    roots: ['<rootDir>/server/solaar', '<rootDir>/server/db', '<rootDir>/server/state'],
     testMatch: ['**/__tests__/**/*.test.ts'],
     moduleNameMapper: {
         // Strip .js extensions for ESM-style imports in ts-jest (CJS mode)
@@ -11,8 +11,12 @@ const config: Config = {
     },
     collectCoverageFrom: [
         'server/solaar/**/*.ts',
+        'server/db/**/*.ts',
+        'server/state/**/*.ts',
         '!server/solaar/__tests__/**',
         '!server/solaar/index.ts',
+        '!server/db/__tests__/**',
+        '!server/state/__tests__/**',
     ],
     coverageThreshold: {
         global: {

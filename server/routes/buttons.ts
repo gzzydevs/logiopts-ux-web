@@ -6,6 +6,8 @@
 import { Router } from 'express';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow } from '../services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES, SYSTEM_ACTIONS } from '../services/deviceDatabase.js';
+import { upsertDevice } from '../db/repositories/device.repo.js';
+import { setCurrentDevice } from '../state/memory-store.js';
 import type { KnownDevice, KnownButton } from '../types.js';
 
 const router = Router();
@@ -79,6 +81,10 @@ router.get('/device', async (_req, res) => {
         } as KnownButton;
       }),
     };
+
+    // Cache device in DB and memory store
+    upsertDevice(device);
+    setCurrentDevice(device);
 
     res.json({
       ok: true,

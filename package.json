@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage --verbose"
   },
   "dependencies": {
+    "better-sqlite3": "^12.6.2",
     "classnames": "^2.5.1",
     "express": "^5.1.0",
     "i18next": "^24.2.2",
@@ -20,6 +21,7 @@
     "react-i18next": "^15.4.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.2",
     "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",

@@ -9,6 +9,10 @@ import scriptsRouter from './routes/scripts.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
 import { keyListener } from './services/keyListener.js';
+import { bootstrap } from './state/memory-store.js';
+
+// Initialize DB (runs schema.sql on first boot)
+import './db/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -22,6 +26,17 @@ app.use('/api', configRouter);
 app.use('/api', profilesRouter);
 app.use('/api', actionsRouter);
 app.use('/api', scriptsRouter);
+
+// Bootstrap endpoint — returns everything the UI needs on first load
+app.get('/api/bootstrap', (_req, res) => {
+  try {
+    const data = bootstrap();
+    res.json({ ok: true, data });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
 
 // Serve static React build in production
 const distPath = resolve(__dirname, '../dist');
