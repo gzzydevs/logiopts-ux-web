@@ -10,8 +10,12 @@
     "start": "node dist/server/index.js"
   },
   "dependencies": {
+    "classnames": "^2.5.1",
     "express": "^5.1.0",
-    "js-yaml": "^4.1.1"
+    "i18next": "^24.2.2",
+    "js-yaml": "^4.1.1",
+    "lucide-react": "^0.474.0",
+    "react-i18next": "^15.4.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.2",

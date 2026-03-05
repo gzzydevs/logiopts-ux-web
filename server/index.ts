@@ -58,7 +58,27 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
     }
   }
 });
-windowWatcher.start();
+
+app.get('/api/watcher/status', (req, res) => {
+  // We can infer if it's running by checking the internal interval property, 
+  // but let's add an explicit getter or just use a boolean wrapper.
+  // For now let's assume if it has a truthy interval in its instance.
+  const isRunning = (windowWatcher as any).interval !== null;
+  res.json({ active: isRunning });
+});
+
+app.post('/api/watcher/toggle', (req, res) => {
+  const { active } = req.body;
+  if (active) {
+    windowWatcher.start();
+    console.log('[WindowWatcher] Started manually via API');
+  } else {
+    windowWatcher.stop();
+    console.log('[WindowWatcher] Stopped manually via API');
+  }
+  res.json({ success: true, active });
+});
+
 keyListener.start();
 keyListener.on('keydown', async (macroKey) => {
   const activeClass = windowWatcher.getCurrentClass();

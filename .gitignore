@@ -32,3 +32,5 @@ data/profiles/*.json
 
 # TypeScript cache
 *.tsbuildinfo
+
+.agentic_rules
