@@ -34,3 +34,6 @@ data/profiles/*.json
 *.tsbuildinfo
 
 .agentic_rules
+
+# Jest coverage output
+coverage/*
