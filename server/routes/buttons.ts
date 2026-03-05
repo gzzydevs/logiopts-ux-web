@@ -64,18 +64,19 @@ router.get('/device', async (_req, res) => {
         const cidEntry = Object.entries(CID_MAP).find(
           ([_, v]) => v.solaarName === b.name
         );
-        const cid = cidEntry ? parseInt(cidEntry[0], 10) : 1000 + i;
+        const cid = cidEntry ? parseInt(cidEntry[0], 10) : b.cid || 1000 + i;
         const meta = cidEntry ? CID_MAP[cid] : undefined;
 
+        // Ensure we pass through everything that was successfully parsed, especially position
         return {
-          cid,
+          cid: b.cid || cid,
           name: meta?.name || b.name,
           solaarName: b.name,
           divertable: b.divertable,
           rawXy: b.rawXy,
           reprogrammable: b.reprogrammable,
-          position: meta?.position || `unknown-${i}`,
-        } satisfies KnownButton;
+          position: b.position || meta?.position || `unknown-${i}`,
+        } as KnownButton;
       }),
     };
 

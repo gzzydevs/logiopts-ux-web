@@ -63,7 +63,8 @@ export type SolaarAction =
   | { type: 'KeyPress'; keys: string[] }       // X11 keysyms: ['Control_L', 'Tab']
   | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
   | { type: 'MouseScroll'; horizontal: number; vertical: number }
-  | { type: 'Execute'; command: string[] };      // ['pactl', 'set-sink-volume', ...]
+  | { type: 'Execute'; command: string[] }      // ['pactl', 'set-sink-volume', ...]
+  | { type: 'RunScript'; script: string; macroKey?: string }; // Run local script via macro key interception
 
 // ─── Action used in the UI gesture grid ──────────────────────────────────────
 
@@ -93,6 +94,7 @@ export interface Profile {
   deviceName: string;
   dpi?: number;
   buttons: ButtonConfig[];
+  windowClasses?: string[];
   createdAt: string;
   updatedAt: string;
 }

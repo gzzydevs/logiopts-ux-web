@@ -13,8 +13,7 @@ async function ensureDir() {
 
 const router = Router();
 
-// GET /api/profiles
-router.get('/profiles', async (_req, res) => {
+export async function getAllProfiles(): Promise<Profile[]> {
   try {
     await ensureDir();
     const files = await readdir(PROFILES_DIR);
@@ -22,9 +21,20 @@ router.get('/profiles', async (_req, res) => {
     for (const f of files) {
       if (!f.endsWith('.json')) continue;
       const data = await readFile(resolve(PROFILES_DIR, f), 'utf-8');
-      profiles.push(JSON.parse(data));
+      try {
+        profiles.push(JSON.parse(data));
+      } catch { }
     }
-    profiles.sort((a, b) => a.name.localeCompare(b.name));
+    return profiles.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+// GET /api/profiles
+router.get('/profiles', async (_req, res) => {
+  try {
+    const profiles = await getAllProfiles();
     res.json({ ok: true, data: profiles });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';

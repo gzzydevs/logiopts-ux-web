@@ -29,6 +29,9 @@ function actionToYaml(action: SolaarAction): any {
       return { 'mouse-scroll': [action.horizontal, action.vertical] };
     case 'Execute':
       return action.command;
+    case 'RunScript':
+      // From Solaar's perspective, running a script is just outputting the macroKey!
+      return [action.macroKey || 'F12'];
     default:
       return null;
   }
@@ -54,8 +57,8 @@ function buildRule(condition: SolaarRule['condition'], action: SolaarAction, com
   // Action
   const yamlAction = actionToYaml(action);
   if (yamlAction !== null) {
-    // For KeyPress: wrap in KeyPress action type
-    if (action.type === 'KeyPress') {
+    // For KeyPress or RunScript: wrap in KeyPress action type
+    if (action.type === 'KeyPress' || action.type === 'RunScript') {
       rule.push({ 'KeyPress': yamlAction });
     } else if (action.type === 'MouseClick') {
       rule.push({ 'MouseClick': [action.button, action.count] });
@@ -133,15 +136,15 @@ export function generateConfigYaml(
   // Solaar config.yaml structure varies — look for the device key
   // The config stores per-device settings, keyed by either name or unit ID
   // We need to update divert-keys and sensitivity (DPI)
-  
+
   // Look through all keys for our device (by unit ID or device name)
   let deviceKey: string | undefined;
   for (const key of Object.keys(doc)) {
     const entry = doc[key];
     if (typeof entry === 'object' && entry !== null) {
       // Check if this entry has our unit ID or matches device name
-      if (key === config.unitId || key === config.deviceName || 
-          entry._unitId === config.unitId) {
+      if (key === config.unitId || key === config.deviceName ||
+        entry._unitId === config.unitId) {
         deviceKey = key;
         break;
       }

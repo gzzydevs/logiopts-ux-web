@@ -13,6 +13,7 @@ export default function ProfileManager({ deviceName, currentDpi, currentButtons,
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [windowClasses, setWindowClasses] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function loadProfiles() {
@@ -35,17 +36,20 @@ export default function ProfileManager({ deviceName, currentDpi, currentButtons,
     if (!newName.trim()) return;
     setLoading(true);
     try {
+      const appClasses = windowClasses.split(',').map(s => s.trim()).filter(Boolean);
       const profile: Profile = {
         id: '',
         name: newName.trim(),
         deviceName,
         dpi: currentDpi,
         buttons: currentButtons,
+        windowClasses: appClasses.length > 0 ? appClasses : undefined,
         createdAt: '',
         updatedAt: '',
       };
       await saveProfile(profile);
       setNewName('');
+      setWindowClasses('');
       await loadProfiles();
     } catch (err) {
       console.error('Failed to save profile:', err);
@@ -84,6 +88,12 @@ export default function ProfileManager({ deviceName, currentDpi, currentButtons,
             value={newName}
             onChange={e => setNewName(e.target.value)}
             placeholder="Profile name…"
+          />
+          <input
+            type="text"
+            value={windowClasses}
+            onChange={e => setWindowClasses(e.target.value)}
+            placeholder="Window classes (comma separated) e.g. firefox, code"
             onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
           />
           <button className="btn btn-primary" onClick={handleSave} disabled={loading || !newName.trim()}>
@@ -100,7 +110,9 @@ export default function ProfileManager({ deviceName, currentDpi, currentButtons,
               <div className="profile-item-info">
                 <strong>{p.name}</strong>
                 <span className="profile-meta">
-                  DPI: {p.dpi || '—'} · {p.buttons.length} buttons · {new Date(p.updatedAt).toLocaleDateString()}
+                  DPI: {p.dpi || '—'} · {p.buttons.length} buttons
+                  <br />
+                  Apps: {p.windowClasses?.length ? p.windowClasses.join(', ') : 'Any'}
                 </span>
               </div>
               <div className="profile-item-actions">

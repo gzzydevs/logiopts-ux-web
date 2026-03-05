@@ -30,7 +30,8 @@ export type SolaarAction =
   | { type: 'KeyPress'; keys: string[] }
   | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
   | { type: 'MouseScroll'; horizontal: number; vertical: number }
-  | { type: 'Execute'; command: string[] };
+  | { type: 'Execute'; command: string[] }
+  | { type: 'RunScript'; script: string; macroKey?: string }; // Map to macroKey. Uses backend to execute scripts
 
 export interface SolaarRule {
   comment?: string;
@@ -71,6 +72,7 @@ export interface Profile {
   deviceName: string;
   dpi?: number;
   buttons: ButtonConfig[];
+  windowClasses?: string[];
   createdAt: string;
   updatedAt: string;
 }

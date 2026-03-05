@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SolaarAction, SystemAction } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
 
@@ -14,6 +14,16 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
+  const [scripts, setScripts] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/scripts')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) setScripts(data.scripts);
+      })
+      .catch(console.error);
+  }, []);
 
   const actionType = value.type;
 
@@ -34,6 +44,9 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       case 'Execute':
         onChange({ type: 'Execute', command: [] });
         setCmdInput('');
+        break;
+      case 'RunScript':
+        onChange({ type: 'RunScript', script: scripts[0] || 'myscript.sh', macroKey: 'F12' });
         break;
     }
   }
@@ -70,6 +83,7 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
           <option value="MouseClick">Mouse Click</option>
           <option value="MouseScroll">Mouse Scroll</option>
           <option value="Execute">Execute Command</option>
+          <option value="RunScript">Run Local Script</option>
         </select>
 
         {/* Quick system action dropdown */}
@@ -167,6 +181,37 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
         </div>
       )}
 
+      {actionType === 'RunScript' && value.type === 'RunScript' && (
+        <div className="action-detail runscript-detail">
+          <label>
+            Script:
+            {scripts.length > 0 ? (
+              <select
+                value={value.script}
+                onChange={e => onChange({ ...value, script: e.target.value })}
+              >
+                {scripts.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            ) : (
+              <span className="no-scripts"> No scripts found in /scripts</span>
+            )}
+          </label>
+          <label>
+            Macro Bind:
+            <select
+              value={value.macroKey || 'F12'}
+              onChange={e => onChange({ ...value, macroKey: e.target.value })}
+            >
+              <option value="F12">F12</option>
+              <option value="F13">F13</option>
+              <option value="F14">F14</option>
+              <option value="F15">F15</option>
+              <option value="F16">F16</option>
+            </select>
+          </label>
+        </div>
+      )}
+
       {/* Current value display */}
       {actionType !== 'None' && (
         <div className="action-preview">
@@ -184,5 +229,7 @@ function formatAction(a: SolaarAction): string {
     case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
     case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
     case 'Execute': return `Run: ${a.command.join(' ')}`;
+    case 'RunScript': return `Script: ${a.script} (${a.macroKey || 'F12'})`;
+    default: return '';
   }
 }
