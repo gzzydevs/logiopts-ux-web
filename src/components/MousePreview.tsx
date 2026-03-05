@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ActionConfigurator } from './ActionConfigurator';
 import classNames from 'classnames';
@@ -14,55 +14,72 @@ const GenericMouseSVG = () => (
 );
 
 /*
- * labelSide controls whether the text label appears to the LEFT or RIGHT of the dot.
+ * Maps button position string (from KnownButton.position) to CSS class and label side.
  *
- * CRITICAL RULE: Every label must fit INSIDE the 400px canvas of .mouse-device.
+ * labelSide controls whether the text label appears to the LEFT or RIGHT of the dot.
  *  - Left-side nodes (left ≤ 25%) → labels go RIGHT  (toward center)
  *  - Right-side nodes (left ≥ 45%) → labels go LEFT   (toward center)
- *
- * This prevents labels from overflowing the canvas edges and being clipped
- * by parent containers or overlapped by the sidebar ActionConfigurator.
  */
-const MOUSE_NODES = [
-    { id: 'forward', label: 'Forward Button', className: 'node-forward', labelSide: 'right' },
-    { id: 'back', label: 'Back Button', className: 'node-back', labelSide: 'right' },
-    { id: 'middle', label: 'Middle Click', className: 'node-middle', labelSide: 'left' },
-    { id: 'dpi', label: 'DPI Switch / Shift', className: 'node-shift', labelSide: 'left' },
-];
+const POSITION_CONFIG: Record<string, { className: string; labelSide: 'left' | 'right' }> = {
+    forward: { className: 'node-forward', labelSide: 'right' },
+    back: { className: 'node-back', labelSide: 'right' },
+    middle: { className: 'node-middle', labelSide: 'left' },
+    dpiSwitch: { className: 'node-shift', labelSide: 'left' },
+    scrollMode: { className: 'node-scroll', labelSide: 'left' },
+    scrollLeft: { className: 'node-sleft', labelSide: 'right' },
+    scrollRight: { className: 'node-sright', labelSide: 'left' },
+    left: { className: 'node-left', labelSide: 'right' },
+    right: { className: 'node-right', labelSide: 'left' },
+};
 
 export const MousePreview: React.FC = () => {
-    const { devices, selectedDeviceId } = useAppContext();
-    const [activeNode, setActiveNode] = useState<string | null>(null);
+    const { device, selectedCid, setSelectedCid, buttons } = useAppContext();
 
-    const device = devices.find(d => d.id === selectedDeviceId);
+    if (!device) return null;
+
+    // Find the selected button info for the configurator
+    const selectedButton = device.buttons.find(b => b.cid === selectedCid);
+    const selectedConfig = buttons.find(b => b.cid === selectedCid);
 
     return (
         <div className="preview-container">
             <div className="mouse-device">
-                {device?.imageUrl ? (
-                    <img src={device.imageUrl} alt={device.name} className="mouse-img" />
-                ) : (
-                    <GenericMouseSVG />
-                )}
+                <GenericMouseSVG />
 
-                {MOUSE_NODES.map(node => (
-                    <div
-                        key={node.id}
-                        className={classNames('node', node.className, { active: activeNode === node.id })}
-                        onClick={() => setActiveNode(node.id)}
-                    >
-                        <div className={classNames('node-label-container', `label-${node.labelSide}`)}>
-                            <div className="node-label">{node.label}</div>
+                {device.buttons.map(btn => {
+                    const posConfig = POSITION_CONFIG[btn.position] || {
+                        className: `node-pos-${btn.position}`,
+                        labelSide: 'right' as const,
+                    };
+
+                    return (
+                        <div
+                            key={btn.cid}
+                            className={classNames('node', posConfig.className, {
+                                active: selectedCid === btn.cid,
+                                'non-divertable': !btn.divertable,
+                            })}
+                            onClick={() => {
+                                if (btn.divertable) {
+                                    setSelectedCid(selectedCid === btn.cid ? null : btn.cid);
+                                }
+                            }}
+                            title={btn.divertable ? btn.name : `${btn.name} (not configurable)`}
+                        >
+                            <div className={classNames('node-label-container', `label-${posConfig.labelSide}`)}>
+                                <div className="node-label">{btn.name}</div>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
-            {activeNode && (
+            {selectedCid !== null && selectedButton && (
                 <ActionConfigurator
-                    buttonId={activeNode}
-                    buttonLabel={MOUSE_NODES.find(n => n.id === activeNode)?.label || ''}
-                    onClose={() => setActiveNode(null)}
+                    cid={selectedCid}
+                    button={selectedButton}
+                    config={selectedConfig}
+                    onClose={() => setSelectedCid(null)}
                 />
             )}
         </div>

@@ -198,11 +198,12 @@ export interface ParsedDevice {
 
 /** Parse `solaar show` output into device info */
 export function parseSolaarShow(output: string): ParsedDevice[] {
-  console.log('\n=== RAW SOLAAR SHOW OUTPUT ===\n' + output + '\n=============================\n');
   const devices: ParsedDevice[] = [];
   // Match numbered device entries (e.g., "  3: LIFT VERTICAL ERGONOMIC MOUSE")
-  const deviceBlocks = output.split(/\n\s+\d+:\s+/).slice(1);
-  const deviceHeaders = output.match(/\n\s+(\d+):\s+(.+)/g) || [];
+  // Device lines have 2-4 spaces of indentation. Feature/button lines have 10+.
+  // Using {2,4} space match to avoid matching deeply-indented feature/button lines.
+  const deviceBlocks = output.split(/\n {2,4}\d+: /).slice(1);
+  const deviceHeaders = output.match(/\n {2,4}(\d+): (.+)/g) || [];
 
   for (let i = 0; i < deviceHeaders.length; i++) {
     const header = deviceHeaders[i].trim();
@@ -294,6 +295,9 @@ export function parseSolaarShow(output: string): ParsedDevice[] {
           position: guessPosition(buttonName),
         });
       }
+
+      // Filter out internal/virtual buttons that aren't physical user buttons
+      dev.buttons = dev.buttons.filter(b => !b.name.toLowerCase().includes('virtual'));
     }
 
     devices.push(dev);

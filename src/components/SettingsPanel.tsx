@@ -5,18 +5,14 @@ import './SettingsPanel.css';
 
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const {
-        mocksMode, setMocksMode,
-        windowWatcherActive, setWindowWatcherActive
-    } = useAppContext();
+    const { windowWatcherActive, setWindowWatcherActive } = useAppContext();
 
     useEffect(() => {
-        if (mocksMode) return;
         fetch('/api/watcher/status')
             .then(res => res.json())
             .then(data => setWindowWatcherActive(data.active))
             .catch(console.error);
-    }, [mocksMode, setWindowWatcherActive]);
+    }, [setWindowWatcherActive]);
 
     const toggleLanguage = () => {
         i18n.changeLanguage(i18n.language === 'en' ? 'es' : 'en');
@@ -34,18 +30,6 @@ export const SettingsPanel: React.FC = () => {
     return (
         <aside className="settings-panel">
             <h3>Settings</h3>
-
-            <div className="setting-item">
-                <span>{t('app.mocks_mode')}</span>
-                <label className="switch">
-                    <input
-                        type="checkbox"
-                        checked={mocksMode}
-                        onChange={(e) => setMocksMode(e.target.checked)}
-                    />
-                    <span className="slider"></span>
-                </label>
-            </div>
 
             <div className="setting-item">
                 <span>{t('app.window_watcher')}</span>

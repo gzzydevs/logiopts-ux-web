@@ -9,7 +9,14 @@ import scriptsRouter from './routes/scripts.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
 import { keyListener } from './services/keyListener.js';
-import { bootstrap } from './state/memory-store.js';
+import { bootstrap, setCurrentDevice } from './state/memory-store.js';
+import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
+import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
+import { upsertDevice } from './db/repositories/device.repo.js';
+import { createProfile } from './db/repositories/profile.repo.js';
+import { solaarYamlToJson } from './solaar/index.js';
+import { profileConfigToButtonConfigs } from './state/bridge.js';
+import type { KnownDevice, KnownButton, ButtonConfig } from './types.js';
 
 // Initialize DB (runs schema.sql on first boot)
 import './db/index.js';
@@ -28,14 +35,176 @@ app.use('/api', actionsRouter);
 app.use('/api', scriptsRouter);
 
 // Bootstrap endpoint — returns everything the UI needs on first load
-app.get('/api/bootstrap', (_req, res) => {
+// Auto-detects device and creates Default profile from current Solaar config if needed.
+app.get('/api/bootstrap', async (_req, res) => {
   try {
-    const data = bootstrap();
+    let data = bootstrap();
+
+    // 1. If no devices in DB, auto-detect via Solaar
+    if (data.devices.length === 0) {
+      try {
+        console.log('[Bootstrap] No devices in DB, auto-detecting...');
+        const status = await detectSolaar();
+        if (status.installed) {
+          const showCmd = getSolaarShowCommand(status.installType);
+          console.log(`[Bootstrap] Running: ${showCmd}`);
+          const output = await hostShell(showCmd, 30000);
+          console.log(`[Bootstrap] Got ${output.length} chars from solaar show`);
+          const parsed = parseSolaarShow(output);
+          console.log(`[Bootstrap] Parsed ${parsed.length} devices, first has ${parsed[0]?.buttons?.length ?? 0} buttons`);
+
+          if (parsed.length > 0) {
+            const dev = parsed[0];
+            const known = KNOWN_DEVICES[dev.name];
+            // Reuse the same enrichment logic as GET /api/device
+            const device: KnownDevice = {
+              displayName: known?.displayName || dev.name,
+              solaarName: dev.name,
+              unitId: dev.unitId,
+              pid: known?.pid || 0,
+              maxDpi: known?.maxDpi || 4000,
+              minDpi: known?.minDpi || 400,
+              dpiStep: known?.dpiStep || 100,
+              svgId: known?.svgId || 'generic',
+              battery: dev.battery,
+              buttons: dev.buttons.map((b, i) => {
+                const cidEntry = Object.entries(CID_MAP).find(
+                  ([_, v]) => v.solaarName === b.name
+                );
+                const mappedCid = cidEntry ? parseInt(cidEntry[0], 10) : (b.cid ?? 1000 + i);
+                const meta = cidEntry ? CID_MAP[mappedCid] : undefined;
+                return {
+                  cid: mappedCid,
+                  name: meta?.name || b.name,
+                  solaarName: b.name,
+                  divertable: b.divertable,
+                  rawXy: b.rawXy,
+                  reprogrammable: b.reprogrammable,
+                  position: b.position || meta?.position || `unknown-${i}`,
+                } as KnownButton;
+              }),
+            };
+            console.log(`[Bootstrap] Created device: ${device.displayName} with ${device.buttons.length} buttons: ${device.buttons.map(b => b.name).join(', ')}`);
+            upsertDevice(device);
+            setCurrentDevice(device);
+            // Re-read from DB after insert
+            data = bootstrap();
+            console.log(`[Bootstrap] After upsert, DB has ${data.devices[0]?.buttons?.length ?? 0} buttons`);
+          }
+        }
+      } catch (err) {
+        console.warn('[Bootstrap] Auto-detect failed:', err);
+      }
+    }
+
+    // 2. If no profiles, create Default from current Solaar config
+    if (data.profiles.length === 0 && data.devices.length > 0) {
+      const device = data.devices[0];
+      let buttons: ButtonConfig[] = [];
+
+      // Build reverse map: Solaar button name → CID number
+      const nameToCid = new Map<string, number>();
+      for (const [cidStr, meta] of Object.entries(CID_MAP)) {
+        nameToCid.set(meta.solaarName, parseInt(cidStr, 10));
+      }
+
+      try {
+        // Try to read current Solaar rules and convert to ButtonConfig[]
+        const status = await detectSolaar();
+        if (status.installed && status.configDir) {
+          const rulesPath = `${status.configDir}/rules.yaml`;
+          let rulesYaml = '';
+          try { rulesYaml = await hostReadFile(rulesPath); } catch { /* no rules yet */ }
+
+          if (rulesYaml.trim()) {
+            // Parse YAML → ProfileConfig → ButtonConfig[]
+            const profileConfig = solaarYamlToJson(rulesYaml, device.unitId, 'Default');
+            buttons = profileConfigToButtonConfigs(profileConfig);
+
+            // Fix CIDs: profileConfigToButtonConfigs uses ButtonMapping.id which is the button name,
+            // not a "CID-xxx" format. We need to map names back to real Logitech CIDs.
+            for (const btn of buttons) {
+              if (btn.cid === 0) {
+                // Find the matching ButtonMapping to get the button name
+                const mapping = profileConfig.buttons[buttons.indexOf(btn)];
+                if (mapping) {
+                  const realCid = nameToCid.get(mapping.id);
+                  if (realCid !== undefined) {
+                    btn.cid = realCid;
+                    console.log(`[Bootstrap] Mapped "${mapping.id}" → CID ${realCid}`);
+                  }
+                }
+              }
+            }
+
+            console.log(`[Bootstrap] Parsed ${buttons.length} button configs from current rules.yaml`);
+          }
+        }
+      } catch (err) {
+        console.warn('[Bootstrap] Failed to read current Solaar config:', err);
+      }
+
+      // If we couldn't parse existing config, create empty button configs for divertable buttons
+      if (buttons.length === 0) {
+        buttons = device.buttons
+          .filter(b => b.divertable)
+          .map(b => ({
+            cid: b.cid,
+            gestureMode: false,
+            gestures: {
+              None: { type: 'None' as const },
+              Up: { type: 'None' as const },
+              Down: { type: 'None' as const },
+              Left: { type: 'None' as const },
+              Right: { type: 'None' as const },
+            },
+            simpleAction: { type: 'None' as const },
+          }));
+      }
+
+      // Create the Default profile
+      const now = new Date().toISOString();
+      createProfile({
+        id: crypto.randomUUID(),
+        name: 'Default',
+        deviceName: device.unitId,
+        buttons,
+        windowClasses: [],
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log(`[Bootstrap] Created Default profile with ${buttons.length} buttons`);
+
+      // Re-read from DB after profile creation
+      data = bootstrap();
+    }
+
     res.json({ ok: true, data });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Bootstrap] Error:', msg);
     res.status(500).json({ ok: false, error: msg });
   }
+});
+
+// Window Watcher API — MUST be before catch-all
+let currentAppliedProfileId: string | null = null;
+
+app.get('/api/watcher/status', (_req, res) => {
+  const isRunning = (windowWatcher as any).interval !== null;
+  res.json({ active: isRunning });
+});
+
+app.post('/api/watcher/toggle', (req, res) => {
+  const { active } = req.body;
+  if (active) {
+    windowWatcher.start();
+    console.log('[WindowWatcher] Started manually via API');
+  } else {
+    windowWatcher.stop();
+    console.log('[WindowWatcher] Stopped manually via API');
+  }
+  res.json({ success: true, active });
 });
 
 // Serve static React build in production
@@ -45,8 +214,7 @@ app.get('/{*path}', (_req, res) => {
   res.sendFile(resolve(distPath, 'index.html'));
 });
 
-// Window Watcher Setup
-let currentAppliedProfileId: string | null = null;
+// Window Watcher event handler
 windowWatcher.on('window-changed', async (windowClass: string) => {
   console.log(`[WindowWatcher] Active window changed to: ${windowClass}`);
   const profiles = await getAllProfiles();
@@ -74,25 +242,7 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
   }
 });
 
-app.get('/api/watcher/status', (req, res) => {
-  // We can infer if it's running by checking the internal interval property, 
-  // but let's add an explicit getter or just use a boolean wrapper.
-  // For now let's assume if it has a truthy interval in its instance.
-  const isRunning = (windowWatcher as any).interval !== null;
-  res.json({ active: isRunning });
-});
 
-app.post('/api/watcher/toggle', (req, res) => {
-  const { active } = req.body;
-  if (active) {
-    windowWatcher.start();
-    console.log('[WindowWatcher] Started manually via API');
-  } else {
-    windowWatcher.stop();
-    console.log('[WindowWatcher] Stopped manually via API');
-  }
-  res.json({ success: true, active });
-});
 
 keyListener.start();
 keyListener.on('keydown', async (macroKey) => {

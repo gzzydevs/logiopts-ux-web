@@ -4,25 +4,16 @@ import { useAppContext } from './context/AppContext';
 import { Topbar } from './components/Topbar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { MousePreview } from './components/MousePreview';
+import { ToastContainer } from './components/Toast';
 import './App.css';
 
 const AppContent: React.FC = () => {
   const { t } = useTranslation();
-  const { solaarStatus, setSolaarStatus, mocksMode } = useAppContext();
+  const { appStatus, bootstrap, detectDevice } = useAppContext();
 
   useEffect(() => {
-    if (mocksMode) {
-      setSolaarStatus('connected');
-      return;
-    }
-
-    setSolaarStatus('loading');
-    const interval = setInterval(() => {
-      // Simulate polling /api/solaar/status
-      setSolaarStatus('connected');
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [mocksMode, setSolaarStatus]);
+    bootstrap();
+  }, [bootstrap]);
 
   return (
     <div className="app-container">
@@ -30,17 +21,48 @@ const AppContent: React.FC = () => {
       <div className="main-content">
         <SettingsPanel />
         <main className="workspace">
-          {solaarStatus === 'loading' && (
+          {appStatus === 'loading' && (
             <div className="loading-solaar">
               <div className="spinner"></div>
               <h2>{t('app.loading_solaar')}</h2>
             </div>
           )}
-          {solaarStatus === 'connected' && (
+          {appStatus === 'error' && (
+            <div className="loading-solaar">
+              <h2>Connection Error</h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
+                Could not connect to the backend server.
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: '16px' }}
+                onClick={() => bootstrap()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {appStatus === 'no-device' && (
+            <div className="loading-solaar">
+              <h2>No Device Detected</h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
+                Connect your Logitech mouse and make sure Solaar is running.
+              </p>
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: '16px' }}
+                onClick={detectDevice}
+              >
+                🔍 Detect Device
+              </button>
+            </div>
+          )}
+          {appStatus === 'connected' && (
             <MousePreview />
           )}
         </main>
       </div>
+      <ToastContainer />
     </div>
   );
 };

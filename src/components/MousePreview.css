@@ -132,12 +132,10 @@
    NODE POSITIONS  (% of the 400×600 canvas)
 
    Positions are chosen so that EVERY label is
-   fully contained within the 400px width:
+   fully contained within the 400px width.
 
-   Forward  (left 20%, label-right): label spans ~120–260 px  ✓
-   Back     (left 20%, label-right): label spans ~120–230 px  ✓
-   Middle   (left 48%, label-left):  label spans ~ 66–176 px  ✓
-   DPI      (left 48%, label-left):  label spans ~ 26–176 px  ✓
+   Maps to KnownButton.position values from
+   the CID_MAP in deviceDatabase.ts.
 ═══════════════════════════════════════════════ */
 
 /* Left-side buttons ── labels point RIGHT ─────── */
@@ -151,6 +149,11 @@
     left: 20%;
 }
 
+.node-left {
+    top: 20%;
+    left: 20%;
+}
+
 /* Center/right buttons ── labels point LEFT ────── */
 .node-middle {
     top: 20%;
@@ -158,6 +161,52 @@
 }
 
 .node-shift {
+    /* DPI Switch */
     top: 46%;
     left: 48%;
+}
+
+.node-right {
+    top: 20%;
+    left: 70%;
+}
+
+/* Scroll area buttons */
+.node-scroll {
+    /* Smart Shift / Scroll Mode */
+    top: 8%;
+    left: 48%;
+}
+
+.node-sleft {
+    /* Scroll Left */
+    top: 12%;
+    left: 30%;
+}
+
+.node-sright {
+    /* Scroll Right */
+    top: 12%;
+    left: 66%;
+}
+
+/* ═══════════════════════════════════════════════
+   NON-DIVERTABLE BUTTONS
+   Visually muted. Cursor shows they're not
+   interactive.
+═══════════════════════════════════════════════ */
+
+.node.non-divertable {
+    opacity: 0.35;
+    cursor: not-allowed;
+    border-style: dashed;
+}
+
+.node.non-divertable::after {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.node.non-divertable .node-label {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

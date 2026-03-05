@@ -8,6 +8,8 @@ import type {
   SystemAction,
   Profile,
   SolaarRule,
+  BootstrapData,
+  Script,
 } from '../types';
 
 const BASE = '/api';
@@ -20,6 +22,12 @@ async function api<T>(url: string, opts?: RequestInit): Promise<T> {
   const json: ApiResponse<T> = await res.json();
   if (!json.ok) throw new Error(json.error || 'API error');
   return json.data as T;
+}
+
+// ─── Bootstrap ───────────────────────────────────────────────────────────────
+
+export function fetchBootstrap(): Promise<BootstrapData> {
+  return api<BootstrapData>('/bootstrap');
 }
 
 // ─── Device ──────────────────────────────────────────────────────────────────
@@ -60,11 +68,24 @@ export function fetchConfig(): Promise<ConfigResponse> {
 
 export function applyConfig(
   solaarConfig: SolaarConfig,
-  buttons: ButtonConfig[]
+  buttons: ButtonConfig[],
+  profileId?: string,
 ): Promise<{ output: string }> {
   return api<{ output: string }>('/config', {
     method: 'POST',
-    body: JSON.stringify({ solaarConfig, buttons }),
+    body: JSON.stringify({ solaarConfig, buttons, profileId }),
+  });
+}
+
+export function saveConfigToDB(body: {
+  buttons: ButtonConfig[];
+  profileId: string;
+  deviceId: string;
+  profileName: string;
+}): Promise<{ yamlConfig: string; persisted: boolean }> {
+  return api<{ yamlConfig: string; persisted: boolean }>('/config', {
+    method: 'PUT',
+    body: JSON.stringify(body),
   });
 }
 
@@ -85,8 +106,21 @@ export function saveProfile(profile: Profile): Promise<Profile> {
   });
 }
 
+export function updateProfile(id: string, changes: Partial<Profile>): Promise<Profile> {
+  return api<Profile>(`/profiles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(changes),
+  });
+}
+
 export function deleteProfile(id: string): Promise<void> {
   return api<void>(`/profiles/${id}`, { method: 'DELETE' });
+}
+
+// ─── Scripts ─────────────────────────────────────────────────────────────────
+
+export function fetchScripts(): Promise<Script[]> {
+  return api<Script[]>('/scripts');
 }
 
 // ─── Actions (script runner) ─────────────────────────────────────────────────

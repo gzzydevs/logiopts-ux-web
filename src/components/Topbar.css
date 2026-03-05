@@ -80,3 +80,132 @@
   border-color: #fff;
   color: #fff;
 }
+
+/* ─── Device Display ───────────────────────────────────────────────────────── */
+
+.device-name {
+  color: var(--text-primary, #fff);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.device-battery {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary, #888);
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.detect-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(130, 170, 255, 0.1);
+  border: 1px solid rgba(130, 170, 255, 0.3);
+  color: #82aaff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.detect-btn:hover {
+  background: rgba(130, 170, 255, 0.2);
+  border-color: rgba(130, 170, 255, 0.5);
+}
+
+/* ─── Action Buttons (Save / Apply) ────────────────────────────────────────── */
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.save-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.save-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.save-btn.saved {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+.save-btn.error {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.apply-btn {
+  background: linear-gradient(135deg, rgba(130, 170, 255, 0.2), rgba(185, 131, 255, 0.2));
+  border-color: rgba(130, 170, 255, 0.3);
+}
+
+.apply-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(130, 170, 255, 0.3), rgba(185, 131, 255, 0.3));
+  border-color: rgba(130, 170, 255, 0.5);
+  box-shadow: 0 0 20px rgba(130, 170, 255, 0.15);
+}
+
+.apply-btn.applied {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+.apply-btn.error {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+/* ─── Flags ────────────────────────────────────────────────────────────────── */
+
+.flag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary, #888);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cid-badge {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #888);
+}

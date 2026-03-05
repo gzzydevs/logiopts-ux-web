@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { SolaarAction, SystemAction } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
+import { useAppContext } from '../context/AppContext';
 
 interface ActionPickerProps {
   value: SolaarAction;
@@ -14,16 +15,8 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
-  const [scripts, setScripts] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch('/api/scripts')
-      .then(res => res.json())
-      .then(data => {
-        if (data.ok) setScripts(data.scripts);
-      })
-      .catch(console.error);
-  }, []);
+  const { scripts: contextScripts } = useAppContext();
+  const scripts = contextScripts.map(s => s.name);
 
   const actionType = value.type;
 
