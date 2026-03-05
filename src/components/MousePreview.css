@@ -1,26 +1,50 @@
+/* ═══════════════════════════════════════════════
+   PREVIEW CONTAINER
+   Takes up all free space, centers the mouse.
+   position: relative is required so the absolute-
+   positioned ActionConfigurator anchors to it.
+═══════════════════════════════════════════════ */
 .preview-container {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
+    /* No overflow rule — default is visible */
 }
 
+/* ═══════════════════════════════════════════════
+   MOUSE DEVICE
+   400×600 px canvas. Nodes anchor to this.
+
+   ⚠ NO filter, NO transform, NO opacity < 1.
+   Any of these would create an isolated stacking
+   context that clips child overflow and prevents
+   node labels from stacking above the sidebar.
+═══════════════════════════════════════════════ */
 .mouse-device {
     position: relative;
     width: 400px;
     height: 600px;
-    /* Glowing drop shadow */
-    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+    /* filter removed on purpose – see note above */
 }
 
 .mouse-img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    opacity: 0.9;
+    opacity: 0.85;
+    /* Apply the drop-shadow to the image only,
+       so it does NOT create a stacking context
+       on the parent .mouse-device */
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
 }
 
+/* ═══════════════════════════════════════════════
+   NODES  (the clickable dots)
+   Absolutely positioned inside .mouse-device.
+   z-index: 10 puts them above the sidebar (z:5).
+═══════════════════════════════════════════════ */
 .node {
     position: absolute;
     width: 24px;
@@ -29,41 +53,60 @@
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    z-index: 10;
+
+    /* Hover feedback via box-shadow + border only.
+       ⚠ NO transform — it would create a new
+       stacking context on every hover event,
+       causing children to flicker/disappear. */
+    transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+}
+
+.node::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    /* centres a small inner dot */
+    background: white;
+    border-radius: 50%;
 }
 
 .node:hover,
 .node.active {
     background: var(--accent);
     border-color: var(--accent);
-    box-shadow: 0 0 15px var(--accent-glow);
-    transform: scale(1.2);
+    box-shadow: 0 0 16px var(--accent-glow);
+    /* NO transform: scale here */
 }
 
-.node::after {
-    content: '';
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: white;
-    border-radius: 50%;
-}
+/* ═══════════════════════════════════════════════
+   NODE LABELS
 
+   .label-right → text floats to the RIGHT of the dot
+   .label-left  → text floats to the LEFT  of the dot
+═══════════════════════════════════════════════ */
 .node-label-container {
     position: absolute;
     top: 50%;
-    left: 100%;
     transform: translateY(-50%);
-    margin-left: 16px;
     pointer-events: auto;
+    white-space: nowrap;
+}
+
+/* Label to the RIGHT of the dot (for left-side nodes) */
+.label-right {
+    left: calc(100% + 16px);
+}
+
+/* Label to the LEFT of the dot (for right-side nodes) */
+.label-left {
+    right: calc(100% + 16px);
 }
 
 .node-label {
-    background: rgba(40, 42, 54, 0.8);
+    background: rgba(40, 42, 54, 0.85);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     padding: 8px 16px;
     border-radius: 8px;
     color: white;
@@ -71,8 +114,8 @@
     font-weight: 500;
     white-space: nowrap;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    opacity: 0.7;
-    transition: all 0.3s;
+    opacity: 0.75;
+    transition: opacity 0.25s, border-color 0.25s, background 0.25s, box-shadow 0.25s;
     cursor: pointer;
 }
 
@@ -81,32 +124,40 @@
 .node-label:hover {
     opacity: 1;
     border-color: rgba(130, 170, 255, 0.6);
-    background: rgba(60, 62, 74, 0.9);
+    background: rgba(60, 62, 74, 0.95);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* Hardcoded Node Positions for MX Master 3 approximation */
+/* ═══════════════════════════════════════════════
+   NODE POSITIONS  (% of the 400×600 canvas)
+
+   Positions are chosen so that EVERY label is
+   fully contained within the 400px width:
+
+   Forward  (left 20%, label-right): label spans ~120–260 px  ✓
+   Back     (left 20%, label-right): label spans ~120–230 px  ✓
+   Middle   (left 48%, label-left):  label spans ~ 66–176 px  ✓
+   DPI      (left 48%, label-left):  label spans ~ 26–176 px  ✓
+═══════════════════════════════════════════════ */
+
+/* Left-side buttons ── labels point RIGHT ─────── */
 .node-forward {
-    top: 40%;
-    left: 15%;
-}
-
-.node-back {
-    top: 52%;
-    left: 15%;
-}
-
-.node-gesture {
-    top: 68%;
+    top: 36%;
     left: 20%;
 }
 
+.node-back {
+    top: 56%;
+    left: 20%;
+}
+
+/* Center/right buttons ── labels point LEFT ────── */
 .node-middle {
-    top: 30%;
-    left: 50%;
+    top: 20%;
+    left: 48%;
 }
 
 .node-shift {
-    top: 45%;
-    left: 50%;
+    top: 46%;
+    left: 48%;
 }
