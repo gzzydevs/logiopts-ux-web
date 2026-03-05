@@ -37,6 +37,13 @@ export const MousePreview: React.FC = () => {
 
     if (!device) return null;
 
+    // If there are any divertable buttons, only show those — non-divertable ones
+    // (Left Click, Right Click) can't be configured and just clutter the view.
+    const hasAnyDivertable = device.buttons.some(b => b.divertable);
+    const visibleButtons = hasAnyDivertable
+        ? device.buttons.filter(b => b.divertable)
+        : device.buttons;
+
     // Find the selected button info for the configurator
     const selectedButton = device.buttons.find(b => b.cid === selectedCid);
     const selectedConfig = buttons.find(b => b.cid === selectedCid);
@@ -46,7 +53,7 @@ export const MousePreview: React.FC = () => {
             <div className="mouse-device">
                 <GenericMouseSVG />
 
-                {device.buttons.map(btn => {
+                {visibleButtons.map(btn => {
                     const posConfig = POSITION_CONFIG[btn.position] || {
                         className: `node-pos-${btn.position}`,
                         labelSide: 'right' as const,

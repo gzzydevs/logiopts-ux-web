@@ -140,54 +140,55 @@
 
 /* Left-side buttons ── labels point RIGHT ─────── */
 .node-forward {
-    top: 36%;
-    left: 20%;
+    top: 43%;
+    left: 18%;
 }
 
 .node-back {
-    top: 56%;
-    left: 20%;
+    top: 55%;
+    left: 18%;
 }
 
 .node-left {
-    top: 20%;
+    top: 22%;
     left: 20%;
 }
 
 /* Center/right buttons ── labels point LEFT ────── */
 .node-middle {
-    top: 20%;
-    left: 48%;
+    /* Scroll wheel / middle click — center top */
+    top: 26%;
+    left: 46%;
 }
 
 .node-shift {
-    /* DPI Switch */
-    top: 46%;
-    left: 48%;
+    /* DPI Switch — center, just below middle */
+    top: 50%;
+    left: 46%;
 }
 
 .node-right {
-    top: 20%;
-    left: 70%;
+    top: 22%;
+    left: 68%;
 }
 
 /* Scroll area buttons */
 .node-scroll {
     /* Smart Shift / Scroll Mode */
-    top: 8%;
-    left: 48%;
+    top: 10%;
+    left: 46%;
 }
 
 .node-sleft {
     /* Scroll Left */
-    top: 12%;
+    top: 14%;
     left: 30%;
 }
 
 .node-sright {
     /* Scroll Right */
-    top: 12%;
-    left: 66%;
+    top: 14%;
+    left: 62%;
 }
 
 /* ═══════════════════════════════════════════════
