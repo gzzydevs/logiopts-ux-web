@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import type { SolaarAction, SystemAction } from '../types';
-import KeyCapture from './KeyCapture';
-import ComboBuilder from './ComboBuilder';
-import { useAppContext } from '../context/AppContext';
-import { formatKeysym } from '../utils/keyDisplay';
+import KeyCapture, { displayKeysym } from './KeyCapture';
 
 interface ActionPickerProps {
   value: SolaarAction;
@@ -14,12 +11,9 @@ interface ActionPickerProps {
 
 export default function ActionPicker({ value, onChange, systemActions, label }: ActionPickerProps) {
   const [keyCapOpen, setKeyCapOpen] = useState(false);
-  const [comboOpen, setComboOpen] = useState(false);
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
-  const { scripts: contextScripts } = useAppContext();
-  const scripts = contextScripts.map(s => s.name);
 
   const actionType = value.type;
 
@@ -40,9 +34,6 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       case 'Execute':
         onChange({ type: 'Execute', command: [] });
         setCmdInput('');
-        break;
-      case 'RunScript':
-        onChange({ type: 'RunScript', script: scripts[0] || 'myscript.sh', macroKey: 'F12' });
         break;
     }
   }
@@ -79,7 +70,6 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
           <option value="MouseClick">Mouse Click</option>
           <option value="MouseScroll">Mouse Scroll</option>
           <option value="Execute">Execute Command</option>
-          <option value="RunScript">Run Local Script</option>
         </select>
 
         {/* Quick system action dropdown */}
@@ -102,22 +92,11 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       {/* Type-specific controls */}
       {actionType === 'KeyPress' && (
         <div className="action-detail">
-          <div className="key-picker-row">
-            <button className="btn btn-small" onClick={() => setComboOpen(true)}>
-              {value.type === 'KeyPress' && value.keys.length > 0
-                ? value.keys.map(formatKeysym).join(' + ')
-                : 'Pick Keys…'}
-            </button>
-            <button className="btn btn-small btn-ghost-sm" onClick={() => setKeyCapOpen(true)} title="Listen for key press">
-              🎹 Listen
-            </button>
-          </div>
-          <ComboBuilder
-            open={comboOpen}
-            currentKeys={value.type === 'KeyPress' ? value.keys : []}
-            onConfirm={(keys) => { setComboOpen(false); onChange({ type: 'KeyPress', keys }); }}
-            onCancel={() => setComboOpen(false)}
-          />
+          <button className="btn btn-small" onClick={() => setKeyCapOpen(true)}>
+            {value.type === 'KeyPress' && value.keys.length > 0
+              ? value.keys.map(displayKeysym).join(' + ')
+              : 'Capture Keys…'}
+          </button>
           <KeyCapture
             open={keyCapOpen}
             currentKeys={value.type === 'KeyPress' ? value.keys : []}
@@ -188,37 +167,6 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
         </div>
       )}
 
-      {actionType === 'RunScript' && value.type === 'RunScript' && (
-        <div className="action-detail runscript-detail">
-          <label>
-            Script:
-            {scripts.length > 0 ? (
-              <select
-                value={value.script}
-                onChange={e => onChange({ ...value, script: e.target.value })}
-              >
-                {scripts.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            ) : (
-              <span className="no-scripts"> No scripts found in /scripts</span>
-            )}
-          </label>
-          <label>
-            Macro Bind:
-            <select
-              value={value.macroKey || 'F12'}
-              onChange={e => onChange({ ...value, macroKey: e.target.value })}
-            >
-              <option value="F12">F12</option>
-              <option value="F13">F13</option>
-              <option value="F14">F14</option>
-              <option value="F15">F15</option>
-              <option value="F16">F16</option>
-            </select>
-          </label>
-        </div>
-      )}
-
       {/* Current value display */}
       {actionType !== 'None' && (
         <div className="action-preview">
@@ -232,11 +180,9 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
 function formatAction(a: SolaarAction): string {
   switch (a.type) {
     case 'None': return '';
-    case 'KeyPress': return `Keys: ${a.keys.map(formatKeysym).join(' + ')}`;
+    case 'KeyPress': return `Keys: ${a.keys.map(displayKeysym).join(' + ')}`;
     case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
     case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
     case 'Execute': return `Run: ${a.command.join(' ')}`;
-    case 'RunScript': return `Script: ${a.script} (${a.macroKey || 'F12'})`;
-    default: return '';
   }
 }
