@@ -5,8 +5,8 @@
  * POST /api/config/reset — reset to defaults
  */
 import { Router } from 'express';
-import { detectSolaar, hostReadFile, hostWriteFile, killSolaar, launchSolaar } from '../services/solaarDetector.js';
-import { generateConfigYaml, parseRulesYaml } from '../services/configGenerator.js';
+import { detectSolaar, hostReadFile } from '../services/solaarDetector.js';
+import { parseRulesYaml } from '../services/configGenerator.js';
 import { jsonToSolaarYaml } from '../solaar/index.js';
 import { buttonConfigsToProfileConfig } from '../state/bridge.js';
 import { saveConfig as dbSaveConfig } from '../db/repositories/config.repo.js';
@@ -63,13 +63,6 @@ router.post('/config', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'Solaar not found' });
     }
 
-    // Read existing config to merge into
-    let existingConfig = '';
-    try { existingConfig = await hostReadFile(`${status.configDir}/config.yaml`); } catch { /* OK */ }
-
-    // Generate config.yaml (merges divert-keys + DPI into existing)
-    const configYaml = generateConfigYaml(existingConfig, solaarConfig);
-
     // Generate rules.yaml using the NEW parser (correct Solaar format with button names)
     const profileConfig = buttonConfigsToProfileConfig(
       buttons,
@@ -78,9 +71,21 @@ router.post('/config', async (req, res) => {
     );
     const rulesYaml = jsonToSolaarYaml(profileConfig);
 
-    // Use shell script to atomically write + restart
-    const stdin = `${configYaml}\n---RULES---\n${rulesYaml}`;
-    const output = await runScript('apply-solaar.sh', [status.installType, status.configDir], stdin);
+    // Build divert-keys CSV for the shell script (e.g. "83:2,86:2,253:2")
+    // The script patches these into the existing config.yaml via sed,
+    // preserving Solaar's native format with integer keys.
+    const divertPairs: string[] = [];
+    for (const [cid, mode] of Object.entries(solaarConfig.divertKeys)) {
+      divertPairs.push(`${cid}:${mode}`);
+    }
+    const divertKeysCsv = divertPairs.join(',');
+
+    // Use shell script to patch config + write rules + restart Solaar
+    const output = await runScript(
+      'apply-solaar.sh',
+      [status.installType, status.configDir, divertKeysCsv],
+      rulesYaml,
+    );
 
     res.json({ ok: true, data: { output } });
   } catch (err: unknown) {

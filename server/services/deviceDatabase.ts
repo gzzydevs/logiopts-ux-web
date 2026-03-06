@@ -51,10 +51,10 @@ export const BROWSER_TO_X11KEYSYM: Record<string, string> = {
   Semicolon: 'semicolon', Quote: 'apostrophe', Backquote: 'grave',
   Minus: 'minus', Equal: 'equal',
   // Media keys (might come from KeyboardEvent.code)
-  MediaPlayPause: 'XF86AudioPlay', MediaStop: 'XF86AudioStop',
-  MediaTrackPrevious: 'XF86AudioPrev', MediaTrackNext: 'XF86AudioNext',
-  AudioVolumeUp: 'XF86AudioRaiseVolume', AudioVolumeDown: 'XF86AudioLowerVolume',
-  AudioVolumeMute: 'XF86AudioMute',
+  MediaPlayPause: 'XF86_AudioPlay', MediaStop: 'XF86_AudioStop',
+  MediaTrackPrevious: 'XF86_AudioPrev', MediaTrackNext: 'XF86_AudioNext',
+  AudioVolumeUp: 'XF86_AudioRaiseVolume', AudioVolumeDown: 'XF86_AudioLowerVolume',
+  AudioVolumeMute: 'XF86_AudioMute',
 };
 
 /** Get a friendly display name for an X11 keysym */
@@ -68,10 +68,11 @@ export function keyDisplayName(keysym: string): string {
     space: 'Space', Escape: 'Esc',
     Page_Up: 'PgUp', Page_Down: 'PgDn',
     Up: '↑', Down: '↓', Left: '←', Right: '→',
-    XF86AudioPlay: '⏯ Play', XF86AudioStop: '⏹ Stop',
-    XF86AudioPrev: '⏮ Prev', XF86AudioNext: '⏭ Next',
-    XF86AudioRaiseVolume: '🔊 Vol+', XF86AudioLowerVolume: '🔉 Vol-',
-    XF86AudioMute: '🔇 Mute',
+    XF86_AudioPlay: '⏯ Play', XF86_AudioStop: '⏹ Stop',
+    XF86_AudioPrev: '⏮ Prev', XF86_AudioNext: '⏭ Next',
+    XF86_AudioRaiseVolume: '🔊 Vol+', XF86_AudioLowerVolume: '🔉 Vol-',
+    XF86_AudioMute: '🔇 Mute',
+    XF86_MonBrightnessUp: '🔆 Bright+', XF86_MonBrightnessDown: '🔅 Bright-',
     Tab: 'Tab',
   };
   return names[keysym] || keysym.replace(/_/g, ' ');
@@ -121,22 +122,22 @@ export const SYSTEM_ACTIONS: SystemAction[] = [
   {
     id: 'vol-up',
     label: 'Volume Up',
-    description: 'Increase system volume by 5%',
-    action: { type: 'Execute', command: ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', '+5%'] },
+    description: 'XF86 AudioRaiseVolume key',
+    action: { type: 'KeyPress', keys: ['XF86_AudioRaiseVolume'] },
     category: 'volume',
   },
   {
     id: 'vol-down',
     label: 'Volume Down',
-    description: 'Decrease system volume by 5%',
-    action: { type: 'Execute', command: ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', '-5%'] },
+    description: 'XF86_AudioLowerVolume key',
+    action: { type: 'KeyPress', keys: ['XF86_AudioLowerVolume'] },
     category: 'volume',
   },
   {
     id: 'vol-mute',
     label: 'Toggle Mute',
-    description: 'Toggle mute on default sink',
-    action: { type: 'Execute', command: ['pactl', 'set-sink-mute', '@DEFAULT_SINK@', 'toggle'] },
+    description: 'XF86_AudioMute key',
+    action: { type: 'KeyPress', keys: ['XF86_AudioMute'] },
     category: 'volume',
   },
   // Media
@@ -144,36 +145,36 @@ export const SYSTEM_ACTIONS: SystemAction[] = [
     id: 'media-play',
     label: 'Play / Pause',
     description: 'Toggle media playback',
-    action: { type: 'KeyPress', keys: ['XF86AudioPlay'] },
+    action: { type: 'KeyPress', keys: ['XF86_AudioPlay'] },
     category: 'media',
   },
   {
     id: 'media-next',
     label: 'Next Track',
     description: 'Skip to next track',
-    action: { type: 'KeyPress', keys: ['XF86AudioNext'] },
+    action: { type: 'KeyPress', keys: ['XF86_AudioNext'] },
     category: 'media',
   },
   {
     id: 'media-prev',
     label: 'Previous Track',
     description: 'Skip to previous track',
-    action: { type: 'KeyPress', keys: ['XF86AudioPrev'] },
+    action: { type: 'KeyPress', keys: ['XF86_AudioPrev'] },
     category: 'media',
   },
   // Brightness
   {
     id: 'bright-up',
     label: 'Brightness Up',
-    description: 'Increase screen brightness',
-    action: { type: 'Execute', command: ['brightnessctl', 'set', '+5%'] },
+    description: 'XF86 MonBrightnessUp key',
+    action: { type: 'KeyPress', keys: ['XF86_MonBrightnessUp'] },
     category: 'brightness',
   },
   {
     id: 'bright-down',
     label: 'Brightness Down',
-    description: 'Decrease screen brightness',
-    action: { type: 'Execute', command: ['brightnessctl', 'set', '5%-'] },
+    description: 'XF86_MonBrightnessDown key',
+    action: { type: 'KeyPress', keys: ['XF86_MonBrightnessDown'] },
     category: 'brightness',
   },
   // System

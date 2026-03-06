@@ -71,7 +71,7 @@ app.get('/api/bootstrap', async (_req, res) => {
                 const cidEntry = Object.entries(CID_MAP).find(
                   ([_, v]) => v.solaarName === b.name
                 );
-                const mappedCid = cidEntry ? parseInt(cidEntry[0], 10) : (b.cid ?? 1000 + i);
+                const mappedCid = cidEntry ? parseInt(cidEntry[0], 10) : (1000 + i);
                 const meta = cidEntry ? CID_MAP[mappedCid] : undefined;
                 return {
                   cid: mappedCid,
@@ -80,7 +80,7 @@ app.get('/api/bootstrap', async (_req, res) => {
                   divertable: b.divertable,
                   rawXy: b.rawXy,
                   reprogrammable: b.reprogrammable,
-                  position: b.position || meta?.position || `unknown-${i}`,
+                  position: meta?.position || `unknown-${i}`,
                 } as KnownButton;
               }),
             };

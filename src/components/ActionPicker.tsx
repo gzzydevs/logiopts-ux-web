@@ -184,5 +184,6 @@ function formatAction(a: SolaarAction): string {
     case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
     case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
     case 'Execute': return `Run: ${a.command.join(' ')}`;
+    case 'RunScript': return `Script: ${a.script}`;
   }
 }

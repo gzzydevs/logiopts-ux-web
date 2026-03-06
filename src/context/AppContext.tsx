@@ -267,6 +267,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     divertKeys[btn.cid] = 2; // Mouse Gestures mode
                 } else if (btn.simpleAction.type !== 'None') {
                     divertKeys[btn.cid] = 1; // Diverted
+                } else {
+                    divertKeys[btn.cid] = 0; // Default — reset to normal
                 }
             }
 
