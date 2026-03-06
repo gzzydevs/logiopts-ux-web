@@ -111,9 +111,18 @@ describe('Roundtrip: JSON → YAML → JSON', () => {
     });
 
     it('should roundtrip a button with Execute', () => {
-        // Execute commands are joined into a single string in YAML and parsed back
-        // as a single-element array — this is the expected lossless representation.
-        const config = makeConfig([
+        // Execute: multi-element command is joined as a shell string in YAML
+        // and parsed back as a single-element array. This is expected and mirrors
+        // what Solaar itself stores.
+        const original = makeConfig([
+            {
+                id: 'Back Button',
+                actions: {
+                    click: { type: 'Execute', command: ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', '+5%'] },
+                },
+            },
+        ]);
+        const expected = makeConfig([
             {
                 id: 'Back Button',
                 actions: {
@@ -121,7 +130,9 @@ describe('Roundtrip: JSON → YAML → JSON', () => {
                 },
             },
         ]);
-        roundtrip(config);
+        const yamlStr = jsonToSolaarYaml(original);
+        const parsed = solaarYamlToJson(yamlStr, 'test-device', 'default');
+        expect(normalizeConfig(parsed)).toEqual(normalizeConfig(expected));
     });
 
     it('should normalize away None actions during roundtrip', () => {

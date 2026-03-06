@@ -241,6 +241,8 @@ export function parseSolaarShow(output: string): ParsedDevice[] {
         const knMatch = kh.match(/\d+:\s+(.+?)\s*,\s*default:/);
         if (!knMatch) continue;
         const buttonName = knMatch[1].trim();
+        // Skip the internal virtual gesture button — it's not a physical key
+        if (buttonName === 'Virtual Gesture Button') continue;
         const flags = kb.toLowerCase();
         dev.buttons.push({
           name: buttonName,

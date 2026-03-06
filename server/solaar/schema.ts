@@ -92,10 +92,16 @@ export const VALID_SPECIAL_KEYS = new Set([
 
 /**
  * Returns true if `key` looks like a valid X11 keysym.
- * Accepts modifiers, special keys, and single printable characters (a-z, 0-9).
+ * Accepts:
+ *   - Single keysyms (modifiers, special keys, printable chars, XF86_ family)
+ *   - Comma-separated chords: "Control_L,c" or "Control_L,Shift_L,t"
  */
 export function isValidKeysym(key: string): boolean {
     if (!key || key.length === 0) return false;
+    // Comma-separated chord — validate each part individually
+    if (key.includes(',')) {
+        return key.split(',').every(p => isValidKeysym(p.trim()));
+    }
     if (VALID_MODIFIER_KEYS.has(key)) return true;
     if (VALID_SPECIAL_KEYS.has(key)) return true;
     // Single printable character (a-z, A-Z, 0-9, punctuation)

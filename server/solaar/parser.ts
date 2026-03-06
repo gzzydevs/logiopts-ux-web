@@ -35,15 +35,25 @@ function yamlEntryToMacro(item: any): Macro | null {
 
     if ('KeyPress' in item) {
         const val = item.KeyPress;
-        // val can be: a string, an array of strings, or an array of [array, string]
-        // e.g. [[Control_L, Shift_L, t], click] → keys=["Control_L,Shift_L,t"], stripping "click" event
-        let rawKeys: string[] = Array.isArray(val) ? val.map((k: any) =>
-            Array.isArray(k) ? k.join(',') : String(k)
-        ) : [String(val)];
-        // Filter out Solaar trigger events (click, depress, release)
-        rawKeys = rawKeys.filter(k => !SOLAAR_EVENTS.has(k));
-        if (rawKeys.length === 0) rawKeys = ['click']; // fallback if only event was present
-        return { type: 'KeyPress', keys: rawKeys };
+        // val is either:
+        //   a string                → single key,  e.g. "XF86_AudioPlay"
+        //   an array of items       → each item is a chord or a trigger event
+        //     - string item         → single key or trigger ("click")
+        //     - array item          → chord, e.g. ["Control_L", "c"]
+        // We collect all non-trigger items and flatten chords into the keys array.
+        const keys: string[] = [];
+        const items: any[] = Array.isArray(val) ? val : [val];
+        for (const k of items) {
+            if (Array.isArray(k)) {
+                // Inline chord array — each element is a key of the chord
+                keys.push(...k.map(String));
+            } else {
+                const s = String(k);
+                if (!SOLAAR_EVENTS.has(s)) keys.push(s);
+            }
+        }
+        if (keys.length === 0) return null;
+        return { type: 'KeyPress', keys };
     }
 
     if ('MouseClick' in item) {
@@ -82,15 +92,13 @@ function yamlEntryToMacro(item: any): Macro | null {
 function macroToRuleLines(macro: Macro): string[] {
     switch (macro.type) {
         case 'KeyPress': {
-            // keys[] entries are comma-separated keysym chords, e.g. "Control_L,c"
+            // keys[] is the chord: multiple keys = pressed simultaneously = inline array
+            // Single key = plain string.  Always append the "click" trigger event.
             const lines: string[] = ['  - KeyPress:'];
-            for (const key of macro.keys) {
-                const parts = key.split(',').map(p => p.trim());
-                if (parts.length > 1) {
-                    lines.push(`    - [${parts.join(', ')}]`);
-                } else {
-                    lines.push(`    - ${parts[0]}`);
-                }
+            if (macro.keys.length > 1) {
+                lines.push(`    - [${macro.keys.join(', ')}]`);
+            } else {
+                lines.push(`    - ${macro.keys[0]}`);
             }
             lines.push('    - click');
             return lines;

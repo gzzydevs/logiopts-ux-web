@@ -84,8 +84,7 @@ describe('jsonToSolaarYaml', () => {
 
     it('should handle multi-key KeyPress as inline array block item', () => {
         const config = makeConfig([
-            // Comma-separated string = chord (pressed simultaneously) → [Control_L, c]
-            { id: 'Forward Button', actions: { click: keyPress('Control_L,c') } },
+            { id: 'Forward Button', actions: { click: keyPress('Control_L', 'c') } },
         ]);
         const yaml = jsonToSolaarYaml(config);
         // Block format: "  - KeyPress:\n    - [Control_L, c]"
@@ -190,11 +189,11 @@ describe('jsonToSolaarYaml', () => {
             {
                 id: 'Forward Button',
                 actions: {
-                    click: keyPress('Control_L,c'),
+                    click: keyPress('Control_L', 'c'),
                     up: keyPress('XF86_AudioPlay'),
-                    right: keyPress('Super_L,Shift_L,Right'),
-                    left: keyPress('Super_L,Shift_L,Left'),
-                    down: keyPress('Control_L,b'),
+                    right: keyPress('Super_L', 'Shift_L', 'Right'),
+                    left: keyPress('Super_L', 'Shift_L', 'Left'),
+                    down: keyPress('Control_L', 'b'),
                 },
             },
             {
@@ -203,18 +202,18 @@ describe('jsonToSolaarYaml', () => {
                     click: mouseClick('middle', 'click'),
                     up: keyPress('XF86_AudioRaiseVolume'),
                     down: keyPress('XF86_AudioLowerVolume'),
-                    right: keyPress('Control_L,Tab'),
-                    left: keyPress('Control_L,Shift_L,Tab'),
+                    right: keyPress('Control_L', 'Tab'),
+                    left: keyPress('Control_L', 'Shift_L', 'Tab'),
                 },
             },
             {
                 id: 'Back Button',
                 actions: {
-                    click: keyPress('Control_L,v'),
-                    up: keyPress('Control_L,Shift_L,t'),
-                    right: keyPress('Control_L,t'),
-                    left: keyPress('Control_L,Shift_L,p'),
-                    down: keyPress('Control_L,w'),
+                    click: keyPress('Control_L', 'v'),
+                    up: keyPress('Control_L', 'Shift_L', 't'),
+                    right: keyPress('Control_L', 't'),
+                    left: keyPress('Control_L', 'Shift_L', 'p'),
+                    down: keyPress('Control_L', 'w'),
                 },
             },
         ]);
@@ -230,5 +229,6 @@ describe('jsonToSolaarYaml', () => {
         expect(yaml).toMatch(/MouseClick: \[middle/);
         expect(yaml).toContain('- XF86_AudioRaiseVolume');
         expect(yaml).toContain('MouseGesture: Back Button');
+        expect(yaml).toContain('- [Control_L, Shift_L, Tab]');
     });
 });
