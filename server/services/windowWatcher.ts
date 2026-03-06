@@ -1,9 +1,5 @@
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import EventEmitter from 'node:events';
-import { HOST_BIN } from './solaarDetector.js';
-
-const execAsync = promisify(exec);
+import { hostShell } from './solaarDetector.js';
 
 export class WindowWatcher extends EventEmitter {
     private interval: NodeJS.Timeout | null = null;
@@ -41,20 +37,12 @@ export class WindowWatcher extends EventEmitter {
 
     private async getActiveWindow(): Promise<string | null> {
         try {
-            // Check if we are running in a Flatpak or Distrobox and prefix appropriately
-            const cmd = HOST_BIN === 'flatpak-spawn' ? 'flatpak-spawn --host xdotool getactivewindow getwindowclassname'
-                : HOST_BIN === 'distrobox-host-exec' ? 'distrobox-host-exec xdotool getactivewindow getwindowclassname'
-                    : 'xdotool getactivewindow getwindowclassname';
-
-            const { stdout } = await execAsync(cmd);
-            if (stdout && stdout.trim()) {
-                return stdout.trim();
-            }
-        } catch (e) {
-            // Ignore errors (e.g., no active window or xdotool not installed on host)
+            // hostShell already handles flatpak-spawn / distrobox-host-exec transparently
+            const result = await hostShell('xdotool getactivewindow getwindowclassname 2>/dev/null');
+            return result.trim() || null;
+        } catch {
+            return null;
         }
-
-        return null;
     }
 }
 

@@ -25,7 +25,8 @@ echo "$CONFIG_YAML" > "$CONFIG_DIR/config.yaml"
 echo "$RULES_YAML"  > "$CONFIG_DIR/rules.yaml"
 
 # Kill and restart Solaar
-pkill -f solaar 2>/dev/null || true
+# Use 'python.*solaar' pattern to avoid matching this script itself
+pkill -f "python.*solaar" 2>/dev/null || true
 sleep 1
 
 if [[ "$INSTALL_TYPE" == "flatpak" ]]; then

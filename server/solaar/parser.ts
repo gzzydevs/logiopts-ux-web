@@ -1,14 +1,15 @@
 /**
  * Core parser: JSON ⇄ Solaar YAML conversion.
  *
- * Produces multi-document YAML matching the real Solaar rules.yaml format:
+ * Produces a single-document YAML matching the real Solaar rules.yaml format:
  *   %YAML 1.3
  *   ---
- *   - MouseGesture: [ButtonName]
- *   - KeyPress: [Control_L, c]
+ *   - Rule:
+ *     - MouseGesture: ButtonName
+ *     - KeyPress:
+ *       - [Control_L, c]
+ *       - click
  *   ...
- *
- * TODO: replace string output with persistence module when ready.
  */
 
 import yaml from 'js-yaml';
@@ -24,48 +25,6 @@ import {
 } from './schema';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Build the MouseGesture YAML value for a button + direction */
-function buildMouseGesture(buttonName: string, direction: GestureDirection): any[] {
-    const parts: string[] = [buttonName];
-    const dirStr = SOLAAR_DIRECTION_MAP[direction];
-    if (dirStr) parts.push(dirStr);
-    return parts;
-}
-
-/** Convert a Macro to the YAML action entry (the value after the action key) */
-function macroToYamlEntry(macro: Macro): { key: string; value: any } | null {
-    switch (macro.type) {
-        case 'KeyPress':
-            // Solaar: single key → bare string, multiple keys → array
-            return {
-                key: 'KeyPress',
-                value: macro.keys.length === 1 ? macro.keys[0] : macro.keys,
-            };
-
-        case 'MouseClick':
-            return {
-                key: 'MouseClick',
-                value: [macro.button, macro.action],
-            };
-
-        case 'MouseScroll':
-            return {
-                key: 'MouseScroll',
-                value: [macro.horizontal, macro.vertical],
-            };
-
-        case 'Execute':
-            return {
-                key: 'Execute',
-                value: macro.command,
-            };
-
-        default:
-            // None or unknown — should not reach here (caller skips None)
-            return null;
-    }
-}
 
 // Solaar trigger events that should NOT be treated as keys
 const SOLAAR_EVENTS = new Set(['click', 'depress', 'release']);
@@ -114,64 +73,129 @@ function yamlEntryToMacro(item: any): Macro | null {
 // ─── JSON → YAML ─────────────────────────────────────────────────────────────
 
 /**
- * Convert a ProfileConfig to Solaar-compatible multi-document YAML.
+ * Render a Macro as the indented YAML lines that go inside a `- Rule:` block.
  *
- * Each button/direction pair with a non-None action becomes a separate
- * YAML document delimited by `---` and `...`.
+ * Produces the exact format Solaar 1.x expects:
+ *   KeyPress  → block sequence with optional inner inline array + `click` trigger
+ *   MouseClick / MouseScroll / Execute → single inline-array line
+ */
+function macroToRuleLines(macro: Macro): string[] {
+    switch (macro.type) {
+        case 'KeyPress': {
+            // keys[] entries are comma-separated keysym chords, e.g. "Control_L,c"
+            const lines: string[] = ['  - KeyPress:'];
+            for (const key of macro.keys) {
+                const parts = key.split(',').map(p => p.trim());
+                if (parts.length > 1) {
+                    lines.push(`    - [${parts.join(', ')}]`);
+                } else {
+                    lines.push(`    - ${parts[0]}`);
+                }
+            }
+            lines.push('    - click');
+            return lines;
+        }
+        case 'MouseClick':
+            return [`  - MouseClick: [${macro.button}, ${macro.action}]`];
+        case 'MouseScroll':
+            return [`  - MouseScroll: [${macro.horizontal}, ${macro.vertical}]`];
+        case 'Execute':
+            return [`  - Execute: ${macro.command.join(' ')}`];
+        default:
+            return [];
+    }
+}
+
+/**
+ * Convert a ProfileConfig to Solaar-compatible YAML.
+ *
+ * Produces a SINGLE document with a list of `- Rule:` entries, exactly
+ * matching the format Solaar 1.x writes and reads:
+ *
+ *   %YAML 1.3
+ *   ---
+ *   - Rule:
+ *     - MouseGesture: Back Button
+ *     - KeyPress:
+ *       - [Control_L, v]
+ *       - click
+ *   - Rule:
+ *     - MouseGesture: [Back Button, Mouse Up]
+ *     - KeyPress:
+ *       - [Control_L, Shift_L, t]
+ *       - click
+ *   ...
  */
 export function jsonToSolaarYaml(config: ProfileConfig): string {
-    const docs: string[] = [];
-    let lastButtonId: string | null = null;
+    const ruleLines: string[] = [];
 
     for (const button of config.buttons) {
-        // Deterministic direction order
         for (const dir of ALL_DIRECTIONS) {
             const macro = button.actions[dir];
             if (!macro || macro.type === 'None') continue;
 
-            const actionEntry = macroToYamlEntry(macro);
-            if (!actionEntry) continue;
+            const actionLines = macroToRuleLines(macro);
+            if (actionLines.length === 0) continue;
 
-            // Build the YAML document as a list of objects
-            const mg = buildMouseGesture(button.id, dir);
-            const items: any[] = [
-                { MouseGesture: mg },
-                { [actionEntry.key]: actionEntry.value },
-            ];
+            // MouseGesture: plain string for click, inline array for directional
+            const dirStr = SOLAAR_DIRECTION_MAP[dir];
+            const mgValue = dirStr
+                ? `[${button.id}, ${dirStr}]`
+                : button.id;
 
-            // Serialize with js-yaml (flow for inner values)
-            const yamlBody = yaml.dump(items, {
-                flowLevel: 2,
-                lineWidth: 200,
-                noRefs: true,
-            }).trimEnd();
-
-            // Add section comment when button changes
-            let comment = '';
-            if (button.id !== lastButtonId) {
-                comment = `# === ${button.id.toUpperCase()} ===\n`;
-                lastButtonId = button.id;
-            }
-
-            docs.push(`${comment}${yamlBody}`);
+            ruleLines.push('- Rule:');
+            ruleLines.push(`  - MouseGesture: ${mgValue}`);
+            ruleLines.push(...actionLines);
         }
     }
 
-    if (docs.length === 0) {
+    if (ruleLines.length === 0) {
         return '%YAML 1.3\n---\n...\n';
     }
 
-    const body = docs.map(d => `---\n${d}\n...`).join('\n');
-    return `%YAML 1.3\n${body}\n`;
+    return `%YAML 1.3\n---\n${ruleLines.join('\n')}\n...\n`;
 }
 
 // ─── YAML → JSON ─────────────────────────────────────────────────────────────
 
+/** Extract button name + direction + action from a flat Rule item list */
+function extractRuleFromItems(items: any[]): SolaarRuleDoc | null {
+    let buttonName: string | null = null;
+    let direction: GestureDirection = 'click';
+    let action: Macro = { type: 'None' };
+
+    for (const item of items) {
+        if (!item || typeof item !== 'object') continue;
+
+        if ('MouseGesture' in item) {
+            const mg = item.MouseGesture;
+            if (typeof mg === 'string') {
+                buttonName = mg;
+                direction = 'click';
+            } else if (Array.isArray(mg) && mg.length >= 1) {
+                buttonName = String(mg[0]);
+                direction = mg.length >= 2
+                    ? (REVERSE_DIRECTION_MAP[String(mg[1])] ?? 'click')
+                    : 'click';
+            }
+            continue;
+        }
+
+        const parsed = yamlEntryToMacro(item);
+        if (parsed) action = parsed;
+    }
+
+    return buttonName ? { buttonName, direction, action } : null;
+}
+
 /**
  * Parse a Solaar rules.yaml string back into a ProfileConfig.
  *
- * Groups rules by button name, reconstructing the ButtonMapping structure.
- * Unknown fields in the YAML are silently ignored.
+ * Handles two formats:
+ *   1. Real Solaar format — single `---` doc, list of `- Rule:` entries:
+ *        [{Rule: [{MouseGesture:…}, {KeyPress:…}]}, {Rule:[…]}, …]
+ *   2. Legacy/test format — multi-doc (one `---…---` block per rule):
+ *        flat [{MouseGesture:…}, {KeyPress:…}] per YAML document
  */
 export function solaarYamlToJson(
     yamlStr: string,
@@ -182,74 +206,59 @@ export function solaarYamlToJson(
         return { deviceId, profile, buttons: [] };
     }
 
-    // Strip YAML version header
-    const stripped = yamlStr.replace(/^%YAML[^\n]*\n/, '');
-
-    // Split into documents
-    const rawDocs = stripped.split(/\n?---\n?/).filter(d => d.trim() && d.trim() !== '...');
-
-    // Parse each document into SolaarRuleDoc
     const ruleDocs: SolaarRuleDoc[] = [];
+
+    // Strip YAML version header and split into YAML documents
+    const stripped = yamlStr.replace(/^%YAML[^\n]*\n/, '');
+    const rawDocs = stripped.split(/\n?---\n?/).filter(d => d.trim() && d.trim() !== '...');
 
     for (const rawDoc of rawDocs) {
         const docStr = rawDoc.replace(/\.\.\.\s*$/, '').trim();
         if (!docStr) continue;
 
-        // Strip comment lines for parsing, but capture first comment
-        const lines = docStr.split('\n');
-        const commentLine = lines.find(l => l.trim().startsWith('#'));
-        const comment = commentLine ? commentLine.replace(/^#\s*/, '').trim() : undefined;
-
         let doc: any;
         try {
             doc = yaml.load(docStr);
         } catch {
-            continue; // Skip malformed documents
+            continue;
         }
 
         if (!Array.isArray(doc)) continue;
 
-        // Extract MouseGesture condition and action
-        let buttonName: string | null = null;
-        let direction: GestureDirection = 'click';
-        let action: Macro = { type: 'None' };
+        // Detect real Solaar format: every top-level item is { Rule: [...] }
+        const allRuleWrapped = doc.length > 0 &&
+            doc.every((item: any) =>
+                item !== null &&
+                typeof item === 'object' &&
+                'Rule' in item &&
+                Array.isArray(item.Rule)
+            );
 
-        for (const item of doc) {
-            if (!item || typeof item !== 'object') continue;
-
-            // MouseGesture condition
-            // Can be a string (e.g. "Back Button" for click) or array (["Back Button", "Mouse Up"])
-            if ('MouseGesture' in item) {
-                const mg = item.MouseGesture;
-                if (typeof mg === 'string') {
-                    // Simple click gesture: MouseGesture: "Back Button"
-                    buttonName = mg;
-                    direction = 'click';
-                } else if (Array.isArray(mg) && mg.length >= 1) {
-                    buttonName = String(mg[0]);
-                    if (mg.length >= 2) {
-                        const dirStr = String(mg[1]);
-                        direction = REVERSE_DIRECTION_MAP[dirStr] || 'click';
-                    }
-                }
-                continue;
+        if (allRuleWrapped) {
+            // Single doc, multiple Rules — iterate each Rule entry
+            for (const ruleItem of doc) {
+                const rule = extractRuleFromItems(ruleItem.Rule);
+                if (rule) ruleDocs.push(rule);
             }
-
-            // Action
-            const parsed = yamlEntryToMacro(item);
-            if (parsed) {
-                action = parsed;
+        } else {
+            // Legacy format: flat list (possibly one Rule wrapper or no wrapper)
+            let items = doc;
+            if (
+                items.length >= 1 &&
+                items[0] !== null &&
+                typeof items[0] === 'object' &&
+                'Rule' in items[0] &&
+                Array.isArray(items[0].Rule)
+            ) {
+                items = items[0].Rule;
             }
-        }
-
-        if (buttonName) {
-            ruleDocs.push({ buttonName, direction, action, comment });
+            const rule = extractRuleFromItems(items);
+            if (rule) ruleDocs.push(rule);
         }
     }
 
     // Group by button name → ButtonMapping[]
     const buttonMap = new Map<string, ButtonMapping>();
-
     for (const rule of ruleDocs) {
         let btn = buttonMap.get(rule.buttonName);
         if (!btn) {

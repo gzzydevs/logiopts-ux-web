@@ -167,17 +167,36 @@ export function validateSolaarYaml(yamlStr: string): ValidationResult {
                 continue;
             }
 
-            // Check for at least a MouseGesture condition
-            const hasCondition = doc.some(
-                (item: any) => item && typeof item === 'object' && ('MouseGesture' in item)
-            );
+            // Support both formats:
+            //   Real format: [{Rule: [{MouseGesture:…}, …]}, …]
+            //   Legacy flat: [{MouseGesture:…}, …]
+            const itemsToCheck: any[][] = [];
 
-            if (!hasCondition) {
-                errors.push({
-                    path: `document[${i}]`,
-                    code: 'YAML_STRUCTURE_ERROR',
-                    message: 'Each document must contain a MouseGesture condition',
-                });
+            const allRuleWrapped = doc.length > 0 &&
+                doc.every((item: any) =>
+                    item !== null &&
+                    typeof item === 'object' &&
+                    'Rule' in item &&
+                    Array.isArray(item.Rule)
+                );
+
+            if (allRuleWrapped) {
+                for (const ruleItem of doc) itemsToCheck.push(ruleItem.Rule);
+            } else {
+                itemsToCheck.push(doc);
+            }
+
+            for (const items of itemsToCheck) {
+                const hasCondition = items.some(
+                    (item: any) => item && typeof item === 'object' && 'MouseGesture' in item
+                );
+                if (!hasCondition) {
+                    errors.push({
+                        path: `document[${i}]`,
+                        code: 'YAML_STRUCTURE_ERROR',
+                        message: 'Each rule must contain a MouseGesture condition',
+                    });
+                }
             }
         } catch (e) {
             errors.push({

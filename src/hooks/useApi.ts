@@ -9,7 +9,6 @@ import type {
   Profile,
   SolaarRule,
   BootstrapData,
-  Script,
 } from '../types';
 
 const BASE = '/api';
@@ -69,11 +68,11 @@ export function fetchConfig(): Promise<ConfigResponse> {
 export function applyConfig(
   solaarConfig: SolaarConfig,
   buttons: ButtonConfig[],
-  profileId?: string,
+  _profileId?: string,
 ): Promise<{ output: string }> {
   return api<{ output: string }>('/config', {
     method: 'POST',
-    body: JSON.stringify({ solaarConfig, buttons, profileId }),
+    body: JSON.stringify({ solaarConfig, buttons }),
   });
 }
 
@@ -106,21 +105,8 @@ export function saveProfile(profile: Profile): Promise<Profile> {
   });
 }
 
-export function updateProfile(id: string, changes: Partial<Profile>): Promise<Profile> {
-  return api<Profile>(`/profiles/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(changes),
-  });
-}
-
 export function deleteProfile(id: string): Promise<void> {
   return api<void>(`/profiles/${id}`, { method: 'DELETE' });
-}
-
-// ─── Scripts ─────────────────────────────────────────────────────────────────
-
-export function fetchScripts(): Promise<Script[]> {
-  return api<Script[]>('/scripts');
 }
 
 // ─── Actions (script runner) ─────────────────────────────────────────────────

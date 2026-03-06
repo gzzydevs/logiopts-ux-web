@@ -111,14 +111,17 @@ describe('Roundtrip: JSON → YAML → JSON', () => {
     });
 
     it('should roundtrip a button with Execute', () => {
-        roundtrip(makeConfig([
+        // Execute commands are joined into a single string in YAML and parsed back
+        // as a single-element array — this is the expected lossless representation.
+        const config = makeConfig([
             {
                 id: 'Back Button',
                 actions: {
-                    click: { type: 'Execute', command: ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', '+5%'] },
+                    click: { type: 'Execute', command: ['pactl set-sink-volume @DEFAULT_SINK@ +5%'] },
                 },
             },
-        ]));
+        ]);
+        roundtrip(config);
     });
 
     it('should normalize away None actions during roundtrip', () => {

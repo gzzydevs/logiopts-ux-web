@@ -31,7 +31,7 @@ export type SolaarAction =
   | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
   | { type: 'MouseScroll'; horizontal: number; vertical: number }
   | { type: 'Execute'; command: string[] }
-  | { type: 'RunScript'; script: string; macroKey?: string }; // Map to macroKey. Uses backend to execute scripts
+  | { type: 'RunScript'; script: string; macroKey?: string };
 
 export interface SolaarRule {
   comment?: string;
@@ -83,18 +83,6 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-export type SolaarInstallType = 'flatpak' | 'system' | 'none';
-
-export interface SolaarStatus {
-  installed: boolean;
-  installType: SolaarInstallType;
-  running: boolean;
-  configDir: string;
-  version: string;
-}
-
-// ─── Script (DB-backed) ──────────────────────────────────────────────────────
-
 export interface Script {
   id: string;
   name: string;
@@ -105,8 +93,6 @@ export interface Script {
   updatedAt: string;
 }
 
-// ─── Bootstrap (initial load) ────────────────────────────────────────────────
-
 export interface BootstrapData {
   devices: KnownDevice[];
   profiles: Profile[];
@@ -114,11 +100,19 @@ export interface BootstrapData {
   scripts: Script[];
 }
 
-// ─── Toast ───────────────────────────────────────────────────────────────────
-
 export interface Toast {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
   message: string;
   duration?: number;
+}
+
+export type SolaarInstallType = 'flatpak' | 'system' | 'none';
+
+export interface SolaarStatus {
+  installed: boolean;
+  installType: SolaarInstallType;
+  running: boolean;
+  configDir: string;
+  version: string;
 }

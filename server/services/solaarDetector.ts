@@ -12,28 +12,21 @@ const FLATPAK_APP_ID = 'io.github.pwr_solaar.solaar';
 
 import { execSync } from 'node:child_process';
 
-export let HOST_BIN: string | null = null;
-try {
-  execSync('distrobox-host-exec true', { stdio: 'ignore' });
-  HOST_BIN = 'distrobox-host-exec';
-} catch {
-  try {
-    execSync('flatpak-spawn --host true', { stdio: 'ignore' });
-    HOST_BIN = 'flatpak-spawn';
-  } catch {
-    HOST_BIN = null;
-  }
-}
+const IS_FLATPAK = existsSync('/.flatpak-info');
+const IS_TOOLBOX = existsSync('/run/.containerenv');
 
-const USE_HOST_SPAWN = HOST_BIN !== null;
+const HAS_FLATPAK_SPAWN = existsSync('/usr/bin/flatpak-spawn');
+const HAS_DISTROBOX_EXEC = existsSync('/usr/bin/distrobox-host-exec');
+
+// We simply try flatpak-spawn if we know we are in a sandbox or we detected the binary
+export const USE_HOST_SPAWN = IS_FLATPAK || IS_TOOLBOX || HAS_FLATPAK_SPAWN || HAS_DISTROBOX_EXEC;
+export const HOST_SPAWN_BIN = HAS_DISTROBOX_EXEC ? 'distrobox-host-exec' : 'flatpak-spawn';
 
 /** Run a command on the host (escaping VS Code Flatpak / Distrobox sandbox if needed) */
 export function hostExec(command: string, args: string[] = [], timeout = 10000): Promise<string> {
   return new Promise((res, rej) => {
-    const bin = HOST_BIN || command;
-    const finalArgs = HOST_BIN === 'flatpak-spawn' ? ['--host', command, ...args]
-      : HOST_BIN === 'distrobox-host-exec' ? [command, ...args]
-        : args;
+    const bin = USE_HOST_SPAWN ? 'flatpak-spawn' : command;
+    const finalArgs = USE_HOST_SPAWN ? ['--host', command, ...args] : args;
 
     execFile(bin, finalArgs, { timeout }, (err, stdout, stderr) => {
       // Don't log normal failures (like 'which solaar' failing) as it clutters logs
@@ -47,10 +40,8 @@ export function hostExec(command: string, args: string[] = [], timeout = 10000):
 export function hostShell(cmd: string, timeout = 10000): Promise<string> {
   return new Promise((res, rej) => {
     // If not in a container, run bash directly
-    const bin = HOST_BIN || 'bash';
-    const finalArgs = HOST_BIN === 'flatpak-spawn' ? ['--host', 'bash', '-c', cmd]
-      : HOST_BIN === 'distrobox-host-exec' ? ['bash', '-c', cmd]
-        : ['-c', cmd];
+    const bin = USE_HOST_SPAWN ? 'flatpak-spawn' : 'bash';
+    const finalArgs = USE_HOST_SPAWN ? ['--host', 'bash', '-c', cmd] : ['-c', cmd];
 
     execFile(bin, finalArgs, { timeout }, (err, stdout, stderr) => {
       console.log(`[hostShell Debug] cmd: ${cmd}`);
@@ -125,7 +116,7 @@ export async function detectSolaar(): Promise<SolaarStatus> {
 
   // Check if running
   try {
-    const pid = await hostShell('pgrep -f solaar 2>/dev/null | head -1');
+    const pid = await hostShell('pgrep -f "python.*solaar" 2>/dev/null | head -1');
     result.running = !!pid && pid !== '';
   } catch {
     result.running = false;
@@ -151,7 +142,9 @@ export function getSolaarLaunchCommand(installType: SolaarInstallType): string {
 /** Kill Solaar process */
 export async function killSolaar(): Promise<void> {
   try {
-    await hostShell('pkill -f solaar 2>/dev/null; sleep 1');
+    // 'python.*solaar' matches the real Solaar process without matching
+    // any shell script whose path happens to contain 'solaar'
+    await hostShell('pkill -f "python.*solaar" 2>/dev/null; sleep 1');
   } catch { /* already dead */ }
 }
 
@@ -176,34 +169,16 @@ export async function hostWriteFile(path: string, content: string): Promise<void
   await hostShell(`cat > "${path}" << 'SOLAAR_EOF'\n${content}\nSOLAAR_EOF`);
 }
 
-export interface ParsedButton {
-  cid?: number;
-  name: string;
-  solaarName?: string;
-  divertable: boolean;
-  rawXy: boolean;
-  reprogrammable: boolean;
-  position?: string;
-}
-
-export interface ParsedDevice {
-  name: string;
-  unitId: string;
-  protocol: string;
-  battery: number;
-  dpi: number;
-  buttons: ParsedButton[];
-  divertKeys: Record<string, 0 | 1 | 2>;
-}
-
 /** Parse `solaar show` output into device info */
 export function parseSolaarShow(output: string): ParsedDevice[] {
   const devices: ParsedDevice[] = [];
-  // Match numbered device entries (e.g., "  3: LIFT VERTICAL ERGONOMIC MOUSE")
-  // Device lines have 2-4 spaces of indentation. Feature/button lines have 10+.
-  // Using {2,4} space match to avoid matching deeply-indented feature/button lines.
-  const deviceBlocks = output.split(/\n {2,4}\d+: /).slice(1);
-  const deviceHeaders = output.match(/\n {2,4}(\d+): (.+)/g) || [];
+  // Match only top-level device entries which are indented with exactly 2 spaces
+  // (e.g. "  1: LIFT VERTICAL ERGONOMIC MOUSE").
+  // Using /\n {2}\d+:\s+/ instead of /\n\s+\d+:\s+/ avoids matching deeply-
+  // indented button/feature entries (9+ spaces) which have the same numeric
+  // prefix pattern but belong inside the device block.
+  const deviceBlocks = output.split(/\n  \d+:\s+/).slice(1);
+  const deviceHeaders = output.match(/\n  (\d+):\s+(.+)/g) || [];
 
   for (let i = 0; i < deviceHeaders.length; i++) {
     const header = deviceHeaders[i].trim();
@@ -256,48 +231,24 @@ export function parseSolaarShow(output: string): ParsedDevice[] {
     }
 
     // Extract reprogrammable keys
-    // The section starts with "Has X reprogrammable keys:" and ends at "Battery:" or EOF
-    const keySectionMatch = fullBlock.match(/Has\s+\d+\s+reprogrammable keys:([\s\S]*?)(?=\n\s+Battery:|\n\s+===|$)/);
-    if (keySectionMatch) {
-      const keySection = keySectionMatch[1];
-
-      // We look for lines like "         0: Left Button               , default: Left Click                  => Left Click"
-      // and capture the block of text until the next button definition or end of section
-      const buttonPattern = /\n\s+(\d+):\s+(.+?)\s*,\s*default:([\s\S]*?)(?=\n\s+\d+:\s+|$)/g;
-
-      function guessPosition(name: string): string {
-        const n = name.toLowerCase();
-        if (n.includes('left')) return 'left';
-        if (n.includes('right')) return 'right';
-        if (n.includes('middle')) return 'middle';
-        if (n.includes('forward')) return 'forward';
-        if (n.includes('back')) return 'back';
-        if (n.includes('dpi')) return 'dpiSwitch';
-        if (n.includes('scroll') && n.includes('mode')) return 'scrollMode';
-        return 'middle'; // default fallback
-      }
-
-      let btnMatch;
-      while ((btnMatch = buttonPattern.exec('\n' + keySection)) !== null) {
-        const cid = parseInt(btnMatch[1], 10);
-        let buttonName = btnMatch[2].trim();
-        // Remove trailing spaces which typically happen with Logitech
-        buttonName = buttonName.replace(/\s+$/, '');
-        const block = btnMatch[3].toLowerCase();
-
+    const keySection = fullBlock.match(/Has \d+ reprogrammable keys:([\s\S]*?)(?=\n\s+Battery:|$)/);
+    if (keySection) {
+      const keyBlocks = keySection[1].split(/\n\s+\d+:\s+/).slice(1);
+      const keyHeaders = keySection[1].match(/\n\s+(\d+):\s+(.+)/g) || [];
+      for (let j = 0; j < keyHeaders.length; j++) {
+        const kh = keyHeaders[j].trim();
+        const kb = keyBlocks[j] || '';
+        const knMatch = kh.match(/\d+:\s+(.+?)\s*,\s*default:/);
+        if (!knMatch) continue;
+        const buttonName = knMatch[1].trim();
+        const flags = kb.toLowerCase();
         dev.buttons.push({
-          cid,
           name: buttonName,
-          solaarName: buttonName,
-          divertable: block.includes('divertable'),
-          rawXy: block.includes('raw_xy') || block.includes('mouse gestures'),
-          reprogrammable: block.includes('reprogrammable'),
-          position: guessPosition(buttonName),
+          divertable: flags.includes('divertable'),
+          rawXy: flags.includes('raw_xy'),
+          reprogrammable: flags.includes('reprogrammable'),
         });
       }
-
-      // Filter out internal/virtual buttons that aren't physical user buttons
-      dev.buttons = dev.buttons.filter(b => !b.name.toLowerCase().includes('virtual'));
     }
 
     devices.push(dev);
@@ -306,3 +257,19 @@ export function parseSolaarShow(output: string): ParsedDevice[] {
   return devices;
 }
 
+export interface ParsedDevice {
+  name: string;
+  unitId: string;
+  protocol: string;
+  battery: number;
+  dpi: number;
+  buttons: ParsedButton[];
+  divertKeys: Record<string, number>;
+}
+
+export interface ParsedButton {
+  name: string;
+  divertable: boolean;
+  rawXy: boolean;
+  reprogrammable: boolean;
+}

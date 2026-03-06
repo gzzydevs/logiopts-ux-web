@@ -49,7 +49,7 @@ describe('buttonConfigsToProfileConfig', () => {
         expect(result.deviceId).toBe('dev-123');
         expect(result.profile).toBe('default');
         expect(result.buttons).toHaveLength(1);
-        expect(result.buttons[0].id).toBe('CID-86');
+        expect(result.buttons[0].id).toBe('Forward Button'); // CID 86 → resolved to Solaar name
         expect(result.buttons[0].actions.click).toEqual({
             type: 'KeyPress',
             keys: ['Control_L', 'c'],
@@ -90,7 +90,7 @@ describe('buttonConfigsToProfileConfig', () => {
         const result = buttonConfigsToProfileConfig(buttons, 'dev', 'default');
 
         expect(result.buttons).toHaveLength(1);
-        expect(result.buttons[0].id).toBe('CID-253');
+        expect(result.buttons[0].id).toBe('DPI Switch'); // CID 253 → resolved to Solaar name
     });
 
     it('should convert MouseClick actions correctly', () => {
@@ -258,7 +258,7 @@ describe('profileConfigToButtonConfigs', () => {
         expect(result[0].cid).toBe(253);
     });
 
-    it('should return cid=0 for non-CID button IDs', () => {
+    it('should resolve known Solaar button name IDs to their CID', () => {
         const config: ProfileConfig = {
             deviceId: 'dev',
             profile: 'default',
@@ -270,7 +270,7 @@ describe('profileConfigToButtonConfigs', () => {
 
         const result = profileConfigToButtonConfigs(config);
 
-        expect(result[0].cid).toBe(0);
+        expect(result[0].cid).toBe(86); // Forward Button = CID 86
     });
 });
 

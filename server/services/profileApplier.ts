@@ -1,5 +1,7 @@
 import { detectSolaar, hostReadFile } from './solaarDetector.js';
-import { generateConfigYaml, generateRulesYaml } from './configGenerator.js';
+import { generateConfigYaml } from './configGenerator.js';
+import { jsonToSolaarYaml } from '../solaar/index.js';
+import { buttonConfigsToProfileConfig } from '../state/bridge.js';
 import { runScript } from './scriptRunner.js';
 import type { SolaarConfig, Profile } from '../types.js';
 
@@ -38,7 +40,14 @@ export async function applyProfileToSolaar(profile: Profile): Promise<boolean> {
     }
 
     const configYaml = generateConfigYaml(existingConfig, solaarConfig);
-    const rulesYaml = generateRulesYaml(profile.buttons);
+
+    // Use new parser for rules.yaml (correct format with button names)
+    const profileConfig = buttonConfigsToProfileConfig(
+        profile.buttons,
+        profile.deviceName,
+        profile.name,
+    );
+    const rulesYaml = jsonToSolaarYaml(profileConfig);
 
     const stdin = `${configYaml}\n---RULES---\n${rulesYaml}`;
     try {

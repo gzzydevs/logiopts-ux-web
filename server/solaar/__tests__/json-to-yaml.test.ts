@@ -62,9 +62,9 @@ describe('jsonToSolaarYaml', () => {
         ]);
         const yaml = jsonToSolaarYaml(config);
 
-        // Should have 5 documents (one per direction)
-        const docCount = (yaml.match(/\n---\n/g) || []).length;
-        expect(docCount).toBe(5);
+        // Should have 5 Rule entries (one per direction) in a single document
+        const ruleCount = (yaml.match(/\n- Rule:/g) || []).length;
+        expect(ruleCount).toBe(5);
 
         expect(yaml).toContain('Mouse Up');
         expect(yaml).toContain('Mouse Down');
@@ -72,20 +72,25 @@ describe('jsonToSolaarYaml', () => {
         expect(yaml).toContain('Mouse Right');
     });
 
-    it('should handle a single-key KeyPress without array brackets', () => {
+    it('should handle a single-key KeyPress as a block list item', () => {
         const config = makeConfig([
             { id: 'DPI Switch', actions: { up: keyPress('XF86_AudioRaiseVolume') } },
         ]);
         const yaml = jsonToSolaarYaml(config);
-        expect(yaml).toContain('KeyPress: XF86_AudioRaiseVolume');
+        // Block format: "  - KeyPress:\n    - XF86_AudioRaiseVolume"
+        expect(yaml).toContain('- KeyPress:');
+        expect(yaml).toContain('- XF86_AudioRaiseVolume');
     });
 
-    it('should handle multi-key KeyPress with array brackets', () => {
+    it('should handle multi-key KeyPress as inline array block item', () => {
         const config = makeConfig([
-            { id: 'Forward Button', actions: { click: keyPress('Control_L', 'c') } },
+            // Comma-separated string = chord (pressed simultaneously) → [Control_L, c]
+            { id: 'Forward Button', actions: { click: keyPress('Control_L,c') } },
         ]);
         const yaml = jsonToSolaarYaml(config);
-        expect(yaml).toMatch(/KeyPress: \[Control_L, c\]/);
+        // Block format: "  - KeyPress:\n    - [Control_L, c]"
+        expect(yaml).toContain('- KeyPress:');
+        expect(yaml).toContain('- [Control_L, c]');
     });
 
     it('should handle MouseClick actions', () => {
@@ -140,9 +145,9 @@ describe('jsonToSolaarYaml', () => {
             },
         ]);
         const yaml = jsonToSolaarYaml(config);
-        // Only one document (for up), not two
-        const docCount = (yaml.match(/\n---\n/g) || []).length;
-        expect(docCount).toBe(1);
+        // Only one Rule entry (for up), not two
+        const ruleCount = (yaml.match(/\n- Rule:/g) || []).length;
+        expect(ruleCount).toBe(1);
         expect(yaml).toContain('Mouse Up');
     });
 
@@ -160,22 +165,24 @@ describe('jsonToSolaarYaml', () => {
         ]);
         const yaml = jsonToSolaarYaml(config);
 
-        const docCount = (yaml.match(/\n---\n/g) || []).length;
-        expect(docCount).toBe(3);
+        const ruleCount = (yaml.match(/\n- Rule:/g) || []).length;
+        expect(ruleCount).toBe(3);
 
         expect(yaml).toContain('Forward Button');
         expect(yaml).toContain('DPI Switch');
         expect(yaml).toContain('Back Button');
     });
 
-    it('should add section comments per button group', () => {
+    it('should contain all buttons in a single YAML document', () => {
         const config = makeConfig([
             { id: 'Forward Button', actions: { click: keyPress('a'), up: keyPress('b') } },
             { id: 'Back Button', actions: { click: keyPress('c') } },
         ]);
         const yaml = jsonToSolaarYaml(config);
-        expect(yaml).toContain('# === FORWARD BUTTON ===');
-        expect(yaml).toContain('# === BACK BUTTON ===');
+        // All rules are in one document (one --- marker)
+        expect((yaml.match(/\n---\n/g) || []).length).toBe(1);
+        expect(yaml).toContain('Forward Button');
+        expect(yaml).toContain('Back Button');
     });
 
     it('should match the format from aplicar_solaar_macros.sh reference', () => {
@@ -183,11 +190,11 @@ describe('jsonToSolaarYaml', () => {
             {
                 id: 'Forward Button',
                 actions: {
-                    click: keyPress('Control_L', 'c'),
+                    click: keyPress('Control_L,c'),
                     up: keyPress('XF86_AudioPlay'),
-                    right: keyPress('Super_L', 'Shift_L', 'Right'),
-                    left: keyPress('Super_L', 'Shift_L', 'Left'),
-                    down: keyPress('Control_L', 'b'),
+                    right: keyPress('Super_L,Shift_L,Right'),
+                    left: keyPress('Super_L,Shift_L,Left'),
+                    down: keyPress('Control_L,b'),
                 },
             },
             {
@@ -196,18 +203,18 @@ describe('jsonToSolaarYaml', () => {
                     click: mouseClick('middle', 'click'),
                     up: keyPress('XF86_AudioRaiseVolume'),
                     down: keyPress('XF86_AudioLowerVolume'),
-                    right: keyPress('Control_L', 'Tab'),
-                    left: keyPress('Control_L', 'Shift_L', 'Tab'),
+                    right: keyPress('Control_L,Tab'),
+                    left: keyPress('Control_L,Shift_L,Tab'),
                 },
             },
             {
                 id: 'Back Button',
                 actions: {
-                    click: keyPress('Control_L', 'v'),
-                    up: keyPress('Control_L', 'Shift_L', 't'),
-                    right: keyPress('Control_L', 't'),
-                    left: keyPress('Control_L', 'Shift_L', 'p'),
-                    down: keyPress('Control_L', 'w'),
+                    click: keyPress('Control_L,v'),
+                    up: keyPress('Control_L,Shift_L,t'),
+                    right: keyPress('Control_L,t'),
+                    left: keyPress('Control_L,Shift_L,p'),
+                    down: keyPress('Control_L,w'),
                 },
             },
         ]);
@@ -215,13 +222,13 @@ describe('jsonToSolaarYaml', () => {
         const yaml = jsonToSolaarYaml(config);
 
         // Verify key patterns from the reference script
-        expect(yaml).toMatch(/MouseGesture:.*Forward Button\]/);
-        expect(yaml).toMatch(/KeyPress: \[Control_L, c\]/);
-        expect(yaml).toMatch(/MouseGesture:.*Forward Button, Mouse Up\]/);
-        expect(yaml).toContain('KeyPress: XF86_AudioPlay');
-        expect(yaml).toMatch(/MouseGesture:.*DPI Switch\]/);
-        expect(yaml).toMatch(/MouseClick:.*middle/);
-        expect(yaml).toContain('KeyPress: XF86_AudioRaiseVolume');
-        expect(yaml).toMatch(/MouseGesture:.*Back Button\]/);
+        expect(yaml).toMatch(/MouseGesture: \[Forward Button, Mouse Up\]/);
+        expect(yaml).toContain('MouseGesture: Forward Button');
+        expect(yaml).toContain('- [Control_L, c]');
+        expect(yaml).toContain('- XF86_AudioPlay');
+        expect(yaml).toContain('MouseGesture: DPI Switch');
+        expect(yaml).toMatch(/MouseClick: \[middle/);
+        expect(yaml).toContain('- XF86_AudioRaiseVolume');
+        expect(yaml).toContain('MouseGesture: Back Button');
     });
 });

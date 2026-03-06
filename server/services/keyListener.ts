@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import EventEmitter from 'node:events';
-import { HOST_BIN } from './solaarDetector.js';
+import { USE_HOST_SPAWN, HOST_SPAWN_BIN } from './solaarDetector.js';
 
 export class KeyListener extends EventEmitter {
     private child: ReturnType<typeof spawn> | null = null;
@@ -15,10 +15,12 @@ export class KeyListener extends EventEmitter {
         if (this.child) return;
 
         // We use xinput from the host to listen for global key events
-        const cmd = HOST_BIN || 'xinput';
-        const args = HOST_BIN === 'flatpak-spawn' ? ['--host', 'xinput', 'test-xi2', '--root']
-            : HOST_BIN === 'distrobox-host-exec' ? ['xinput', 'test-xi2', '--root']
-                : ['test-xi2', '--root'];
+        const cmd = USE_HOST_SPAWN ? HOST_SPAWN_BIN : 'xinput';
+        const args = USE_HOST_SPAWN
+            ? (HOST_SPAWN_BIN === 'flatpak-spawn'
+                ? ['--host', 'xinput', 'test-xi2', '--root']
+                : ['xinput', 'test-xi2', '--root'])
+            : ['test-xi2', '--root'];
 
         try {
             this.child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'] });

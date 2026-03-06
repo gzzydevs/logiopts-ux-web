@@ -14,6 +14,8 @@ import type {
     GestureDirection as UIDirection,
 } from '../types';
 
+import { CID_MAP } from '../services/deviceDatabase.js';
+
 import type {
     ProfileConfig,
     ButtonMapping,
@@ -131,9 +133,9 @@ export function buttonConfigsToProfileConfig(
 
         // Only add if there are actual actions
         if (Object.keys(actions).length > 0) {
-            // We need a button name — use the CID map to get the Solaar name
-            // For now, use a generic naming pattern; the caller can enrich this
-            const buttonId = `CID-${btn.cid}`;
+            // Resolve Solaar button name from CID map
+            const cidMeta = CID_MAP[btn.cid];
+            const buttonId = cidMeta?.solaarName ?? `CID-${btn.cid}`;
             mappings.push({ id: buttonId, actions });
         }
     }
@@ -177,9 +179,18 @@ export function profileConfigToButtonConfigs(config: ProfileConfig): ButtonConfi
             }
         }
 
-        // Extract CID from button ID (format: "CID-123" or Solaar name)
+        // Extract CID from button ID:
+        // - Parsed from YAML: Solaar name like "Back Button" → look up in CID_MAP
+        // - Saved from UI: "CID-123" format → parse directly
+        let cid = 0;
         const cidMatch = mapping.id.match(/CID-(\d+)/);
-        const cid = cidMatch ? parseInt(cidMatch[1], 10) : 0;
+        if (cidMatch) {
+            cid = parseInt(cidMatch[1], 10);
+        } else {
+            // Find by solaarName
+            const entry = Object.entries(CID_MAP).find(([, meta]) => meta.solaarName === mapping.id);
+            if (entry) cid = parseInt(entry[0], 10);
+        }
 
         results.push({
             cid,
