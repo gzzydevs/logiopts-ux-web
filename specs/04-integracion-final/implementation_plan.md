@@ -1,162 +1,169 @@
-# Frontend ↔ Backend Integration
+# Frontend ↔ Backend Integration — Implementation Plan (updated Mar 5, 2026)
 
-Connect the fully mock-based React frontend to the existing Express + SQLite backend, replacing incompatible types and enabling end-to-end configuration flow.
+## CURRENT STATUS: ONE FILE REMAINING
 
-## Proposed Changes
+The entire new frontend is already implemented except `src/App.tsx`, which is still the old version.
+`src/main.tsx` already wraps in `<AppProvider>`, so all new components can access the context.
 
-### Frontend Types
+**Do not touch:** `AppContext.tsx`, `Topbar.tsx`, `Toast.tsx`, `MousePreview.tsx`, `ActionConfigurator.tsx`, `ActionPicker.tsx`, `SettingsPanel.tsx`, `useApi.ts`, `types.ts` — all already implemented and correct.
 
-#### [MODIFY] [types.ts](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts)
+---
 
-Add missing [Script](file:///home/gzzy/Desktop/workspace/logitux-web/server/types.ts#137-146) and [BootstrapData](file:///home/gzzy/Desktop/workspace/logitux-web/server/types.ts#149-155) interfaces that the backend already exposes but the frontend doesn't have yet.
+## [MODIFY] `src/App.tsx` — THE ONLY TASK
 
-```diff
-+export interface Script {
-+  id: string;
-+  name: string;
-+  path: string;
-+  content: string;
-+  executable: boolean;
-+  createdAt: string;
-+  updatedAt: string;
-+}
-+
-+export interface BootstrapData {
-+  devices: KnownDevice[];
-+  profiles: Profile[];
-+  configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
-+  scripts: Script[];
-+}
+### What the old App.tsx does (DELETE all of this):
+
+```
+- Tiene su propio useState para device, buttons, dpi, systemActions, etc.
+- Llama fetchDevice() + fetchConfig() directamente (sin pasar por AppContext)
+- Renderiza <MouseView>, <ButtonConfigPanel>, <ProfileManager> (componentes viejos)
+- Tiene handleApply() propio en el footer
+- NO renderiza <Topbar>, <SettingsPanel>, <MousePreview>, ni <ToastContainer>
+- NO usa useAppContext() en ningún momento
 ```
 
----
+### New App.tsx — exact implementation:
 
-### API Layer
+```tsx
+import { useEffect } from 'react';
+import { useAppContext } from './context/AppContext';
+import { Topbar } from './components/Topbar';
+import { MousePreview } from './components/MousePreview';
+import { SettingsPanel } from './components/SettingsPanel';
+import { ToastContainer } from './components/Toast';
+import './App.css';
 
-#### [MODIFY] [useApi.ts](file:///home/gzzy/Desktop/workspace/logitux-web/src/hooks/useApi.ts)
+export default function App() {
+  const { appStatus, bootstrap } = useAppContext();
 
-Add `fetchBootstrap()` and `saveConfigToDB()` (PUT) functions. The existing functions stay unchanged.
+  useEffect(() => {
+    bootstrap();
+  }, [bootstrap]);
 
-```diff
-+export function fetchBootstrap(): Promise<BootstrapData> {
-+  return api<BootstrapData>('/bootstrap');
-+}
-+
-+export function saveConfigToDB(body: {
-+  buttons: ButtonConfig[];
-+  profileId: string;
-+  deviceId: string;
-+  profileName: string;
-+}): Promise<{ yamlConfig: string; persisted: boolean }> {
-+  return api<{ yamlConfig: string; persisted: boolean }>('/config', {
-+    method: 'PUT',
-+    body: JSON.stringify(body),
-+  });
-+}
+  return (
+    <div className="app">
+      <Topbar />
+
+      <div className="app-body">
+        {appStatus === 'loading' && (
+          <div className="app-state-screen">
+            <div className="spinner" />
+            <p>Detecting device...</p>
+          </div>
+        )}
+
+        {appStatus === 'error' && (
+          <div className="app-state-screen app-state-error">
+            <p>⚠️ Failed to connect to server. Is the backend running?</p>
+            <button className="btn btn-primary" onClick={bootstrap}>Retry</button>
+          </div>
+        )}
+
+        {appStatus === 'no-device' && (
+          <div className="app-state-screen">
+            <p>No Logitech device found. Make sure Solaar is installed and a device is connected.</p>
+            <p style={{ fontSize: '0.85rem', opacity: 0.6 }}>Use the "Detect Device" button in the toolbar.</p>
+          </div>
+        )}
+
+        {appStatus === 'connected' && (
+          <div className="app-connected-layout">
+            <MousePreview />
+            <SettingsPanel />
+          </div>
+        )}
+      </div>
+
+      <ToastContainer />
+    </div>
+  );
+}
 ```
 
----
+### Required CSS classes in `App.css`:
 
-### AppContext (Full Rewrite)
+The existing `App.css` has styles for the old layout. Add the following (without removing existing styles):
 
-#### [MODIFY] [AppContext.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/context/AppContext.tsx)
+```css
+/* ─── App layout ─────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
 
-**Complete rewrite.** Delete all local type definitions ([MacroSlot](file:///home/gzzy/Desktop/workspace/logitux-web/src/context/AppContext.tsx#3-7), [Device](file:///home/gzzy/Desktop/workspace/logitux-web/src/context/AppContext.tsx#24-29), old [ButtonConfig](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#54-60), old [Profile](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#69-79)). Import everything from [src/types.ts](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts). New state shape:
+.app-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
 
-| State field | Type | Description |
-|---|---|---|
-| `device` | `KnownDevice \| null` | Detected device |
-| `profiles` | `Profile[]` | From DB |
-| `activeProfileId` | `string \| null` | Selected profile |
-| `buttons` | `ButtonConfig[]` | Current profile's button configs |
-| `scripts` | `Script[]` | For RunScript selector |
-| `systemActions` | `SystemAction[]` | Quick actions |
-| `appStatus` | `'loading' \| 'connected' \| 'error' \| 'no-device'` | Global status |
-| `saveStatus` | `'idle' \| 'saving' \| 'saved' \| 'error'` | Save operation status |
-| `applyStatus` | `'idle' \| 'applying' \| 'applied' \| 'error'` | Apply operation status |
-| `toasts` | `Toast[]` | Notifications |
+.app-connected-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
 
-New functions exposed via context:
-- [bootstrap()](file:///home/gzzy/Desktop/workspace/logitux-web/server/state/memory-store.ts#170-196) — calls `GET /api/bootstrap`, populates all state
-- `detectDevice()` — calls `GET /api/device`, sets device
-- [updateButton(cid, changes)](file:///home/gzzy/Desktop/workspace/logitux-web/src/context/AppContext.tsx#78-98) — updates button config in local state, marks dirty
-- `saveConfig()` — calls `PUT /api/config` (persist without applying)
-- [applyConfig()](file:///home/gzzy/Desktop/workspace/logitux-web/src/hooks/useApi.ts#61-70) — calls `POST /api/config` (full pipeline)
-- `selectProfile(id)` — switches active profile, loads its buttons
-- `addToast(toast)` / `removeToast(id)` — toast management
+/* ─── State screens ──────────────────────────────────────── */
+.app-state-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-secondary);
+}
 
----
+.app-state-error {
+  color: #ff6b6b;
+}
 
-### Components
+/* ─── Spinner ────────────────────────────────────────────── */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
 
-#### [MODIFY] [App.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/App.tsx)
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+```
 
-Remove mock polling. Call [bootstrap()](file:///home/gzzy/Desktop/workspace/logitux-web/server/state/memory-store.ts#170-196) on mount. Show loading/error/no-device/connected states. Add `<ToastContainer />`.
-
-#### [MODIFY] [Topbar.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/Topbar.tsx)
-
-- Use `device: KnownDevice | null` instead of `devices: Device[]`
-- Show `device.displayName` and battery status
-- Replace device dropdown with "Detect Device" button (when null) or device name display
-- Add **Save** and **Apply** buttons with loading states from context
-- Profiles still selectable from `profiles[]`
-
-#### [MODIFY] [MousePreview.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/MousePreview.tsx)
-
-- Remove hardcoded `MOUSE_NODES` array
-- Generate button nodes dynamically from `device.buttons: KnownButton[]`
-- Use `cid` (number) as the active node identifier instead of string IDs
-- Pass `cid` to new [ActionConfigurator](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/ActionConfigurator.tsx#23-124)
-
-#### [MODIFY] [ActionConfigurator.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/ActionConfigurator.tsx)
-
-**Full rewrite.** Replace the MacroSlot-based UI with [SolaarAction](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#28-35)-based UI:
-- Use existing [ActionPicker](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/ActionPicker.tsx#12-224) component (already supports all [SolaarAction](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#28-35) types)
-- Use existing [ButtonConfig](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#54-60) component (already has gesture mode toggle)
-- Accept `cid: number` and `buttonName: string` as props
-- Read [ButtonConfig](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#54-60) from context by CID, call [updateButton(cid, changes)](file:///home/gzzy/Desktop/workspace/logitux-web/src/context/AppContext.tsx#78-98) on edits
-- Show gesture mode toggle (5 directions with ActionPicker) or simple mode (1 ActionPicker)
-
-#### [MODIFY] [SettingsPanel.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/SettingsPanel.tsx)
-
-Remove `mocksMode` toggle (no longer relevant). Keep language switcher and window watcher toggle.
-
-#### [NEW] [Toast.tsx](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/Toast.tsx)
-
-Toast notifications with auto-dismiss. Types: `success`, `error`, `warning`. Positioned fixed bottom-right. Uses CSS animations for slide-in/fade-out.
-
-#### [NEW] [Toast.css](file:///home/gzzy/Desktop/workspace/logitux-web/src/components/Toast.css)
-
-Styles for toast notifications — glassmorphism cards, type-specific accent colors, animations.
+> **Note:** If `.app`, `.app-body` etc. already exist in `App.css`, update them instead of duplicating. The goal is a flex-column layout with `Topbar` at the top and the body below.
 
 ---
 
-## Verification Plan
+## Verification
 
-### Automated Tests
-
-Run existing backend tests to ensure nothing regresses:
-
+### Tests (must not change)
 ```bash
-cd /home/gzzy/Desktop/workspace/logitux-web && npx jest --verbose
+cd /home/gzzy/Desktop/workspace/logitux-web && npx jest
 ```
+→ All 148 tests must still pass. No server files are modified.
 
-All 148+ tests must pass. We are **not** modifying any backend files, so these should pass unchanged.
-
-### Browser Verification
-
-After implementation, start the dev server and verify in the browser:
-
+### Browser
 ```bash
 cd /home/gzzy/Desktop/workspace/logitux-web && npm run dev
 ```
+Verify at http://localhost:5173:
 
-1. Open the app — should show "Loading..." then transition to connected state or "no device" state
-2. If no device: "Detect Device" button should be visible in topbar
-3. If device found: mouse preview should show buttons from the device data
-4. Click a button → ActionConfigurator opens with [SolaarAction](file:///home/gzzy/Desktop/workspace/logitux-web/src/types.ts#28-35) type dropdowns
-5. Save and Apply buttons visible in topbar with correct loading states
-6. Toast notifications appear on save/apply success or error
-
-> [!NOTE]
-> Since the backend depends on Solaar running on the host, full end-to-end testing with actual device detection will only work on the user's Bazzite system. The browser test will verify UI rendering and API call wiring. If no device is in DB from a previous session, the "no device" state should render correctly.
+1. On open: shows spinner "Detecting device..."
+2. If the Express server is not running: shows error state with Retry button
+3. If the server is running but no device in DB:
+   - shows "no-device" state
+   - `Topbar` has "Detect Device" button
+   - click "Detect Device" → triggers `detectDevice()` → if Solaar is installed, detects the device and transitions to `connected`
+4. In `connected` state:
+   - `Topbar` shows device name (e.g. "MX Master 3")
+   - `MousePreview` shows generic SVG with dots for each divertable button
+   - Click a dot → `ActionConfigurator` opens in the right panel
+   - `ActionConfigurator` shows the selected button with `ActionPicker`
+   - Change an action → Save/Apply buttons in `Topbar` become enabled
+   - Click "Save" → PUT /api/config → toast "Configuration saved"
+   - Click "Apply" → POST /api/config → full pipeline → toast "Configuration applied to Solaar!"
