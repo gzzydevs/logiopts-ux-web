@@ -132,14 +132,11 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
         }
         // Main key
         if (selectedKey) parts.push(selectedKey);
-
-        if (parts.length === 0) return [];
-        // Return as single comma-separated string (Solaar format)
-        return [parts.join(',')];
+        return parts;
     }
 
     const combo = buildCombo();
-    const preview = combo.length > 0 ? combo.map(formatKeysym).join(', ') : 'Select a key…';
+    const preview = combo.length > 0 ? combo.map(formatKeysym).join(' + ') : 'Select a key…';
 
     function handleConfirm() {
         if (combo.length > 0) {

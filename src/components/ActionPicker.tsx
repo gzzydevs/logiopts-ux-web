@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SolaarAction, SystemAction } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
+import ComboBuilder from './ComboBuilder';
 
 interface ActionPickerProps {
   value: SolaarAction;
@@ -11,6 +12,7 @@ interface ActionPickerProps {
 
 export default function ActionPicker({ value, onChange, systemActions, label }: ActionPickerProps) {
   const [keyCapOpen, setKeyCapOpen] = useState(false);
+  const [comboOpen, setComboOpen] = useState(false);
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
@@ -45,6 +47,11 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
 
   function handleKeyCaptureConfirm(keys: string[]) {
     setKeyCapOpen(false);
+    onChange({ type: 'KeyPress', keys });
+  }
+
+  function handleComboConfirm(keys: string[]) {
+    setComboOpen(false);
     onChange({ type: 'KeyPress', keys });
   }
 
@@ -92,16 +99,27 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       {/* Type-specific controls */}
       {actionType === 'KeyPress' && (
         <div className="action-detail">
-          <button className="btn btn-small" onClick={() => setKeyCapOpen(true)}>
-            {value.type === 'KeyPress' && value.keys.length > 0
-              ? value.keys.map(displayKeysym).join(' + ')
-              : 'Capture Keys…'}
-          </button>
+          <div className="action-key-buttons">
+            <button className="btn btn-small" onClick={() => setKeyCapOpen(true)}>
+              {value.type === 'KeyPress' && value.keys.length > 0
+                ? value.keys.map(displayKeysym).join(' + ')
+                : 'Capture Keys…'}
+            </button>
+            <button className="btn btn-small btn-secondary" onClick={() => setComboOpen(true)}>
+              🎹 Combo Builder
+            </button>
+          </div>
           <KeyCapture
             open={keyCapOpen}
             currentKeys={value.type === 'KeyPress' ? value.keys : []}
             onConfirm={handleKeyCaptureConfirm}
             onCancel={() => setKeyCapOpen(false)}
+          />
+          <ComboBuilder
+            open={comboOpen}
+            currentKeys={value.type === 'KeyPress' ? value.keys : []}
+            onConfirm={handleComboConfirm}
+            onCancel={() => setComboOpen(false)}
           />
         </div>
       )}
