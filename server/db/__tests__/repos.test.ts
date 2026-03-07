@@ -21,7 +21,7 @@ afterEach(() => {
 // ─── Schema validation ──────────────────────────────────────────────────────
 
 describe('Schema', () => {
-    it('should create all 4 tables', () => {
+    it('should create all 5 tables', () => {
         const tables = db.prepare(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
         ).all() as { name: string }[];
@@ -31,6 +31,7 @@ describe('Schema', () => {
         expect(names).toContain('profiles');
         expect(names).toContain('configs');
         expect(names).toContain('scripts');
+        expect(names).toContain('preferences');
     });
 
     it('should create indices', () => {

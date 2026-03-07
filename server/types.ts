@@ -157,4 +157,6 @@ export interface BootstrapData {
   profiles: Profile[];
   configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
   scripts: Script[];
+  preferences: Record<string, string>;
+  activeProfileId: string | null;
 }

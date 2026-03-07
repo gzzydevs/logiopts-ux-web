@@ -105,6 +105,13 @@ export function saveProfile(profile: Profile): Promise<Profile> {
   });
 }
 
+export function updateProfile(id: string, changes: Partial<Profile>): Promise<Profile> {
+  return api<Profile>(`/profiles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(changes),
+  });
+}
+
 export function deleteProfile(id: string): Promise<void> {
   return api<void>(`/profiles/${id}`, { method: 'DELETE' });
 }

@@ -31,7 +31,7 @@ export class WindowWatcher extends EventEmitter {
                 this.emit('window-changed', windowClass);
             }
         } catch (e) {
-            // Ignore errors 
+            // Ignore errors
         }
     }
 
