@@ -66,19 +66,18 @@ router.get('/device', async (_req, res) => {
         const cidEntry = Object.entries(CID_MAP).find(
           ([_, v]) => v.solaarName === b.name
         );
-        // Use real Logitech CID from CID_MAP, fallback to parsed cid or generated
-        const mappedCid = cidEntry ? parseInt(cidEntry[0], 10) : (b.cid ?? 1000 + i);
-        const meta = cidEntry ? CID_MAP[mappedCid] : undefined;
+        const cid = cidEntry ? parseInt(cidEntry[0], 10) : 1000 + i;
+        const meta = cidEntry ? CID_MAP[cid] : undefined;
 
         return {
-          cid: mappedCid,
+          cid,
           name: meta?.name || b.name,
           solaarName: b.name,
           divertable: b.divertable,
           rawXy: b.rawXy,
           reprogrammable: b.reprogrammable,
-          position: b.position || meta?.position || `unknown-${i}`,
-        } as KnownButton;
+          position: meta?.position || `unknown-${i}`,
+        } satisfies KnownButton;
       }),
     };
 
