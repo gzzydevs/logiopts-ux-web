@@ -32,6 +32,12 @@ interface AppliedSnapshot {
     yaml: string;
 }
 
+export interface ProfileSwitchedPayload {
+    profileId: string;
+    profileName?: string;
+    trigger: 'user' | 'watcher' | 'bootstrap';
+}
+
 export interface StoreEvent {
     type: 'profile-switched' | 'config-applied' | 'watcher-status';
     payload: unknown;
