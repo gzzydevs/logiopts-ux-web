@@ -16,6 +16,9 @@ import {
     fetchSystemActions,
     saveConfigToDB,
     applyConfig as apiApplyConfig,
+    saveProfile as apiSaveProfile,
+    deleteProfile as apiDeleteProfile,
+    updateProfile as apiUpdateProfile,
 } from '../hooks/useApi';
 
 // ─── App Status ──────────────────────────────────────────────────────────────
@@ -56,6 +59,9 @@ interface AppContextType {
     removeToast: (id: string) => void;
     setWindowWatcherActive: (active: boolean) => void;
     setLayoutEditMode: (active: boolean) => void;
+    createNewProfile: (name: string, windowClasses?: string[]) => Promise<void>;
+    deleteCurrentProfile: () => Promise<void>;
+    updateProfileMeta: (id: string, changes: Partial<Profile>) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -325,6 +331,87 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [activeProfileId, device, buttons, profiles, addToast]);
 
+    // ─── Profile management ────────────────────────────────────────────────────
+
+    const createNewProfile = useCallback(async (name: string, windowClasses?: string[]) => {
+        if (!device) {
+            addToast({ type: 'warning', message: 'No device connected' });
+            return;
+        }
+
+        try {
+            // Create blank profile with default empty buttons for divertable buttons
+            const blankButtons: ButtonConfig[] = device.buttons
+                .filter(b => b.divertable)
+                .map(b => makeDefaultButtonConfig(b.cid));
+
+            const profile: Profile = {
+                id: '',
+                name,
+                deviceName: device.unitId,
+                buttons: blankButtons,
+                windowClasses: windowClasses && windowClasses.length > 0 ? windowClasses : undefined,
+                createdAt: '',
+                updatedAt: '',
+            };
+            const created = await apiSaveProfile(profile);
+            setProfiles(prev => [...prev, created]);
+            setActiveProfileId(created.id);
+            setButtons([...created.buttons]);
+            setDirty(false);
+            setSelectedCid(null);
+            setSaveStatus('idle');
+            setApplyStatus('idle');
+            addToast({ type: 'success', message: `Profile "${name}" created` });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Create failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [device, addToast]);
+
+    const deleteCurrentProfile = useCallback(async () => {
+        if (!activeProfileId) return;
+
+        const profile = profiles.find(p => p.id === activeProfileId);
+        if (!profile) return;
+
+        try {
+            await apiDeleteProfile(activeProfileId);
+            const remaining = profiles.filter(p => p.id !== activeProfileId);
+            setProfiles(remaining);
+            if (remaining.length > 0) {
+                setActiveProfileId(remaining[0].id);
+                setButtons([...remaining[0].buttons]);
+            } else {
+                setActiveProfileId(null);
+                setButtons([]);
+            }
+            setDirty(false);
+            setSelectedCid(null);
+            addToast({ type: 'success', message: `Profile "${profile.name}" deleted` });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [activeProfileId, profiles, addToast]);
+
+    const updateProfileMeta = useCallback(async (id: string, changes: Partial<Profile>) => {
+        try {
+            const updated = await apiUpdateProfile(id, changes);
+            setProfiles(prev => prev.map(p => p.id === id ? updated : p));
+            addToast({ type: 'success', message: 'Profile updated' });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Update failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [addToast]);
+
     // ─── SSE subscription ──────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -385,6 +472,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             removeToast,
             setWindowWatcherActive,
             setLayoutEditMode,
+            createNewProfile,
+            deleteCurrentProfile,
+            updateProfileMeta,
         }}>
             {children}
         </AppContext.Provider>
