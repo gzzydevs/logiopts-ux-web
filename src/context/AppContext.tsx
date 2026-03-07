@@ -59,7 +59,7 @@ interface AppContextType {
     removeToast: (id: string) => void;
     setWindowWatcherActive: (active: boolean) => void;
     setLayoutEditMode: (active: boolean) => void;
-    createNewProfile: (name: string, windowClasses?: string[]) => Promise<void>;
+    createNewProfile: (name: string, windowClasses?: string[], cloneFromProfileId?: string) => Promise<void>;
     deleteCurrentProfile: () => Promise<void>;
     updateProfileMeta: (id: string, changes: Partial<Profile>) => Promise<void>;
 }
@@ -335,23 +335,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // ─── Profile management ────────────────────────────────────────────────────
 
-    const createNewProfile = useCallback(async (name: string, windowClasses?: string[]) => {
+    const createNewProfile = useCallback(async (name: string, windowClasses?: string[], cloneFromProfileId?: string) => {
         if (!device) {
             addToast({ type: 'warning', message: 'No device connected' });
             return;
         }
 
         try {
-            // Create blank profile with default empty buttons for divertable buttons
-            const blankButtons: ButtonConfig[] = device.buttons
-                .filter(b => b.divertable)
-                .map(b => makeDefaultButtonConfig(b.cid));
+            // If cloning, copy buttons from the source profile; otherwise use blank defaults
+            let baseButtons: ButtonConfig[];
+            if (cloneFromProfileId) {
+                const source = profiles.find(p => p.id === cloneFromProfileId);
+                baseButtons = source
+                    ? JSON.parse(JSON.stringify(source.buttons))
+                    : device.buttons.filter(b => b.divertable).map(b => makeDefaultButtonConfig(b.cid));
+            } else {
+                baseButtons = device.buttons
+                    .filter(b => b.divertable)
+                    .map(b => makeDefaultButtonConfig(b.cid));
+            }
 
             const profile: Profile = {
                 id: '',
                 name,
                 deviceName: device.unitId,
-                buttons: blankButtons,
+                buttons: baseButtons,
                 windowClasses: windowClasses?.length ? windowClasses : undefined,
                 createdAt: '',
                 updatedAt: '',
@@ -371,7 +379,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 message: `Create failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
             });
         }
-    }, [device, addToast]);
+    }, [device, profiles, addToast]);
 
     const deleteCurrentProfile = useCallback(async () => {
         if (!activeProfileId) return;

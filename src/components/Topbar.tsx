@@ -17,15 +17,17 @@ export const Topbar: React.FC = () => {
     const [showNewProfile, setShowNewProfile] = useState(false);
     const [newName, setNewName] = useState('');
     const [newWindowClasses, setNewWindowClasses] = useState('');
+    const [cloneFromId, setCloneFromId] = useState('');
 
     const activeProfile = profiles.find(p => p.id === activeProfileId);
 
     const handleCreateProfile = async () => {
         if (!newName.trim()) return;
         const wc = newWindowClasses.split(',').map(s => s.trim()).filter(Boolean);
-        await createNewProfile(newName.trim(), wc.length > 0 ? wc : undefined);
+        await createNewProfile(newName.trim(), wc.length > 0 ? wc : undefined, cloneFromId);
         setNewName('');
         setNewWindowClasses('');
+        setCloneFromId('');
         setShowNewProfile(false);
     };
 
@@ -183,11 +185,11 @@ export const Topbar: React.FC = () => {
             {/* New Profile Modal — rendered via Portal at document.body to avoid
                 stacking-context issues from topbar backdrop-filter / sticky / overflow */}
             {showNewProfile && createPortal(
-                <div className="topbar-modal-overlay" onClick={() => setShowNewProfile(false)}>
+                <div className="topbar-modal-overlay" onClick={() => { setShowNewProfile(false); setCloneFromId(''); }}>
                     <div className="topbar-modal" onClick={e => e.stopPropagation()}>
                         <div className="topbar-modal-header">
                             <h3>New Profile</h3>
-                            <button className="topbar-modal-close" onClick={() => setShowNewProfile(false)}>
+                            <button className="topbar-modal-close" onClick={() => { setShowNewProfile(false); setCloneFromId(''); }}>
                                 <X size={18} />
                             </button>
                         </div>
@@ -202,6 +204,30 @@ export const Topbar: React.FC = () => {
                                     autoFocus
                                     onKeyDown={e => { if (e.key === 'Enter') handleCreateProfile(); }}
                                 />
+                            </label>
+                            <label>
+                                <span>Clone from</span>
+                                <select
+                                    value={cloneFromId}
+                                    onChange={e => setCloneFromId(e.target.value)}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid var(--border)',
+                                        color: 'white',
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        width: '100%',
+                                        outline: 'none',
+                                        fontSize: '0.9rem',
+                                    }}
+                                >
+                                    <option value="" style={{ background: '#1a1b26' }}>None (empty profile)</option>
+                                    {profiles.map(p => (
+                                        <option key={p.id} value={p.id} style={{ background: '#1a1b26' }}>
+                                            {p.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
                             <label>
                                 <span>Window classes <small>(optional, comma separated, for auto-switching)</small></span>
@@ -219,7 +245,7 @@ export const Topbar: React.FC = () => {
                             </p>
                         </div>
                         <div className="topbar-modal-actions">
-                            <button className="action-btn" onClick={() => setShowNewProfile(false)}>Cancel</button>
+                            <button className="action-btn" onClick={() => { setShowNewProfile(false); setCloneFromId(''); }}>Cancel</button>
                             <button
                                 className="action-btn apply-btn"
                                 onClick={handleCreateProfile}
