@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine, Plus, Trash2, X, AppWindow } from 'lucide-react';
+import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine, Plus, Trash2, X } from 'lucide-react';
 import './Topbar.css';
 
 export const Topbar: React.FC = () => {
@@ -10,14 +10,12 @@ export const Topbar: React.FC = () => {
         saveStatus, applyStatus, dirty,
         saveConfig, applyCurrentConfig,
         isLayoutEditMode, setLayoutEditMode,
-        createNewProfile, deleteCurrentProfile, updateProfileMeta,
+        createNewProfile, deleteCurrentProfile,
     } = useAppContext();
 
     const [showNewProfile, setShowNewProfile] = useState(false);
     const [newName, setNewName] = useState('');
     const [newWindowClasses, setNewWindowClasses] = useState('');
-    const [showProfileSettings, setShowProfileSettings] = useState(false);
-    const [editWindowClasses, setEditWindowClasses] = useState('');
 
     const activeProfile = profiles.find(p => p.id === activeProfileId);
 
@@ -30,21 +28,8 @@ export const Topbar: React.FC = () => {
         setShowNewProfile(false);
     };
 
-    const handleOpenProfileSettings = () => {
-        if (activeProfile) {
-            setEditWindowClasses(activeProfile.windowClasses?.join(', ') || '');
-        }
-        setShowProfileSettings(true);
-    };
-
-    const handleSaveWindowClasses = async () => {
-        if (!activeProfileId) return;
-        const wc = editWindowClasses.split(',').map(s => s.trim()).filter(Boolean);
-        await updateProfileMeta(activeProfileId, { windowClasses: wc.length > 0 ? wc : undefined });
-        setShowProfileSettings(false);
-    };
-
     return (
+        <>
         <header className="topbar">
             <div className="brand" style={{ marginRight: 'auto' }}>
                 <h1>LogiTux</h1>
@@ -133,17 +118,6 @@ export const Topbar: React.FC = () => {
                     </button>
                 )}
 
-                {/* Profile settings (window classes) button */}
-                {!isLayoutEditMode && activeProfile && (
-                    <button
-                        className="profile-settings-btn"
-                        onClick={handleOpenProfileSettings}
-                        title="Configure app matching for this profile"
-                    >
-                        <AppWindow size={16} />
-                    </button>
-                )}
-
                 {/* Delete profile button */}
                 {!isLayoutEditMode && activeProfile && profiles.length > 1 && (
                     <button
@@ -203,8 +177,9 @@ export const Topbar: React.FC = () => {
                     Apply
                 </button>
             </div>
+        </header>
 
-            {/* New Profile Modal */}
+            {/* New Profile Modal — rendered outside <header> to avoid backdrop-filter containment */}
             {showNewProfile && (
                 <div className="topbar-modal-overlay" onClick={() => setShowNewProfile(false)}>
                     <div className="topbar-modal" onClick={e => e.stopPropagation()}>
@@ -227,7 +202,7 @@ export const Topbar: React.FC = () => {
                                 />
                             </label>
                             <label>
-                                <span>Window classes <small>(comma separated, for auto-switching)</small></span>
+                                <span>Window classes <small>(optional, comma separated, for auto-switching)</small></span>
                                 <input
                                     type="text"
                                     value={newWindowClasses}
@@ -254,53 +229,6 @@ export const Topbar: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* Profile Settings Modal (Window Classes) */}
-            {showProfileSettings && activeProfile && (
-                <div className="topbar-modal-overlay" onClick={() => setShowProfileSettings(false)}>
-                    <div className="topbar-modal" onClick={e => e.stopPropagation()}>
-                        <div className="topbar-modal-header">
-                            <h3>Profile: {activeProfile.name}</h3>
-                            <button className="topbar-modal-close" onClick={() => setShowProfileSettings(false)}>
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <div className="topbar-modal-body">
-                            <label>
-                                <span>Window classes <small>(comma separated)</small></span>
-                                <input
-                                    type="text"
-                                    value={editWindowClasses}
-                                    onChange={e => setEditWindowClasses(e.target.value)}
-                                    placeholder="e.g. firefox, Navigator, chromium"
-                                    autoFocus
-                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveWindowClasses(); }}
-                                />
-                            </label>
-                            <p className="topbar-modal-hint">
-                                When Window Watcher is active and detects one of these window classes, this profile will be auto-applied to Solaar.
-                                Leave empty for a general-purpose profile (no auto-switching).
-                            </p>
-                            {activeProfile.windowClasses && activeProfile.windowClasses.length > 0 && (
-                                <div className="profile-wc-tags">
-                                    {activeProfile.windowClasses.map(wc => (
-                                        <span key={wc} className="wc-tag">{wc}</span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div className="topbar-modal-actions">
-                            <button className="action-btn" onClick={() => setShowProfileSettings(false)}>Cancel</button>
-                            <button
-                                className="action-btn apply-btn"
-                                onClick={handleSaveWindowClasses}
-                            >
-                                <Check size={16} /> Save
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </header>
+        </>
     );
 };
