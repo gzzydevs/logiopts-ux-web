@@ -6,6 +6,7 @@ import configRouter from './routes/config.js';
 import profilesRouter, { getAllProfiles } from './routes/profiles.js';
 import actionsRouter from './routes/actions.js';
 import scriptsRouter from './routes/scripts.js';
+import mockRouter from './mock/routes.js';
 import preferencesRouter from './routes/preferences.js';
 import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
@@ -28,16 +29,31 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = 3001;
 
+// When MOCK_MODE=true (e.g. `npm run dev:cloud`), all API requests are handled
+// by the mock router — no Solaar installation or real hardware is required.
+const MOCK_MODE = process.env.MOCK_MODE === 'true';
+
+// Tracks last applied profile for window-watcher auto-switching (real mode only)
+let currentAppliedProfileId: string | null = null;
+
 app.use(express.json());
 
 // API routes
-app.use('/api', buttonsRouter);
-app.use('/api', configRouter);
-app.use('/api', profilesRouter);
-app.use('/api', actionsRouter);
-app.use('/api', scriptsRouter);
-app.use('/api', preferencesRouter);
-app.use('/api', eventsRouter);
+if (MOCK_MODE) {
+  console.log('[LogiTux] *** MOCK MODE ACTIVE — using pre-configured MX Master 3 data ***');
+  app.use('/api', mockRouter);
+} else {
+  app.use('/api', buttonsRouter);
+  app.use('/api', configRouter);
+  app.use('/api', profilesRouter);
+  app.use('/api', actionsRouter);
+  app.use('/api', scriptsRouter);
+  app.use('/api', preferencesRouter);
+  app.use('/api', eventsRouter);
+}
+
+// Real bootstrap + watcher + keyListener — skipped in mock mode (handled by mockRouter)
+if (!MOCK_MODE) {
 
 // Bootstrap endpoint — returns everything the UI needs on first load
 // Auto-detects device and creates Default profile from current Solaar config if needed.
@@ -246,12 +262,16 @@ if (watcherPref === 'true') {
   console.log('[WindowWatcher] Auto-started from preferences');
 }
 
+} // end !MOCK_MODE (bootstrap + watcher API routes)
+
 // Serve static React build in production
 const distPath = resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 app.get('/{*path}', (_req, res) => {
   res.sendFile(resolve(distPath, 'index.html'));
 });
+
+if (!MOCK_MODE) {
 
 // Window Watcher event handler
 // Composite key "windowClass::profileId" — dedup on the (window, target-profile) pair so
@@ -307,8 +327,14 @@ keyListener.on('keydown', async (macroKey) => {
   await handleMacroKey(macroKey, activeClass);
 });
 
+} // end !MOCK_MODE
+
 app.listen(PORT, () => {
   console.log(`LogiTux server running on http://localhost:${PORT}`);
+  if (MOCK_MODE) {
+    console.log('[LogiTux] Mock mode — API uses pre-configured MX Master 3 data, no Solaar required');
+    return;
+  }
 
   // ENVIRONMENT DIAGNOSTICS FOR BAZZITE
   try {
