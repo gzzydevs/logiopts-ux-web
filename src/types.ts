@@ -1,73 +1,78 @@
-// Frontend types — mirrors server/types.ts
+// Frontend types — mirrors server/types.ts (Solaar-based)
 
 export interface KnownDevice {
   displayName: string;
-  logidName: string;
+  solaarName: string;
+  unitId: string;
   pid: number;
   buttons: KnownButton[];
-  hasSmartshift: boolean;
-  hasThumbwheel: boolean;
-  hasHiresscroll: boolean;
   maxDpi: number;
   minDpi: number;
   dpiStep: number;
-  maxHosts: number;
   svgId: string;
+  battery: number;
 }
 
 export interface KnownButton {
   cid: number;
   name: string;
-  supportsGestures: boolean;
+  solaarName: string;
+  divertable: boolean;
+  rawXy: boolean;
   reprogrammable: boolean;
   position: string;
 }
 
-export type Action =
-  | { type: 'None' }
-  | { type: 'Keypress'; keys: string[] }
-  | { type: 'Gestures'; gestures: GestureConfig[] }
-  | { type: 'ToggleSmartShift' }
-  | { type: 'ToggleHiresScroll' }
-  | { type: 'CycleDPI'; dpis: number[] }
-  | { type: 'ChangeDPI'; inc: number }
-  | { type: 'ChangeHost'; host: string | number };
+export type GestureDirection = 'None' | 'Up' | 'Down' | 'Left' | 'Right';
 
-export interface GestureConfig {
-  direction: 'None' | 'Up' | 'Down' | 'Left' | 'Right';
-  mode?: 'OnRelease' | 'OnThreshold' | 'OnInterval' | 'OnFewPixels';
-  threshold?: number;
-  action: Action;
+export type SolaarAction =
+  | { type: 'None' }
+  | { type: 'KeyPress'; keys: string[] }
+  | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
+  | { type: 'MouseScroll'; horizontal: number; vertical: number }
+  | { type: 'Execute'; command: string[] }
+  | { type: 'RunScript'; script: string; macroKey?: string };
+
+export interface SolaarRule {
+  comment?: string;
+  condition: SolaarCondition;
+  action: SolaarAction;
+}
+
+export type SolaarCondition =
+  | { type: 'MouseGesture'; directions: string[] }
+  | { type: 'Key'; key: string; event?: 'pressed' | 'released' };
+
+export interface SolaarConfig {
+  deviceName: string;
+  unitId: string;
+  dpi: number;
+  divertKeys: Record<number, 0 | 1 | 2>;
+  rules: SolaarRule[];
 }
 
 export interface ButtonConfig {
   cid: number;
-  action: Action;
-}
-
-export interface DeviceConfig {
-  name: string;
-  dpi?: number;
-  buttons: ButtonConfig[];
-}
-
-export interface LogidConfig {
-  devices: DeviceConfig[];
+  gestureMode: boolean;
+  gestures: Record<GestureDirection, SolaarAction>;
+  simpleAction: SolaarAction;
 }
 
 export interface SystemAction {
   id: string;
   label: string;
   description: string;
-  keys: string[];
+  action: SolaarAction;
+  category: 'media' | 'volume' | 'brightness' | 'system';
 }
 
 export interface Profile {
   id: string;
   name: string;
-  deviceLogidName: string;
+  deviceName: string;
   dpi?: number;
   buttons: ButtonConfig[];
+  windowClasses?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -76,4 +81,38 @@ export interface ApiResponse<T = unknown> {
   ok: boolean;
   data?: T;
   error?: string;
+}
+
+export interface Script {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  executable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BootstrapData {
+  devices: KnownDevice[];
+  profiles: Profile[];
+  configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
+  scripts: Script[];
+}
+
+export interface Toast {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  message: string;
+  duration?: number;
+}
+
+export type SolaarInstallType = 'flatpak' | 'system' | 'none';
+
+export interface SolaarStatus {
+  installed: boolean;
+  installType: SolaarInstallType;
+  running: boolean;
+  configDir: string;
+  version: string;
 }

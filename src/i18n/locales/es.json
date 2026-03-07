@@ -1,0 +1,20 @@
+{
+    "translation": {
+        "app": {
+            "loading_solaar": "Conectando con Solaar...",
+            "window_watcher": "Escuchar Ventana Activa",
+            "mocks_mode": "Modo Pruebas",
+            "add_profile": "Añadir Perfil"
+        },
+        "macro": {
+            "system_action": "Acción del Sistema",
+            "bash_script": "Script Bash",
+            "keyboard_shortcut": "Atajo de Teclado",
+            "slot_click": "Click Normal",
+            "slot_up": "Click + Arriba",
+            "slot_down": "Click + Abajo",
+            "slot_left": "Click + Izquierda",
+            "slot_right": "Click + Derecha"
+        }
+    }
+}

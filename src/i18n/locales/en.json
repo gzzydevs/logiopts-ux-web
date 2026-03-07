@@ -1,0 +1,23 @@
+{
+    "translation": {
+        "app": {
+            "loading_solaar": "Loading Solaar...",
+            "window_watcher": "Active Window Watcher",
+            "mocks_mode": "Mocks Mode",
+            "add_profile": "Add Profile"
+        },
+        "macro": {
+            "system_action": "System Action",
+            "bash_script": "Bash Script",
+            "keyboard_shortcut": "Keyboard Shortcut",
+            "slot_click": "Normal Click",
+            "slot_up": "Click + Up",
+            "slot_down": "Click + Down",
+            "slot_left": "Click + Left",
+            "slot_right": "Click + Right",
+            "save_action": "Save",
+            "cancel_action": "Cancel",
+            "select_action_type": "Select Type"
+        }
+    }
+}

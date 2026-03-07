@@ -1,78 +1,89 @@
-// Shared types between server and client
+// Shared types between server and client — Solaar-based
 
-// ─── Device Database ─────────────────────────────────────────────────────────
+// ─── Device Model ────────────────────────────────────────────────────────────
 
 export interface KnownDevice {
   displayName: string;
-  logidName: string;
+  /** Device name as reported by Solaar (e.g. "LIFT VERTICAL ERGONOMIC MOUSE") */
+  solaarName: string;
+  /** Unique device identifier from Solaar (unit ID or serial) */
+  unitId: string;
   pid: number;
   buttons: KnownButton[];
-  hasSmartshift: boolean;
-  hasThumbwheel: boolean;
-  hasHiresscroll: boolean;
   maxDpi: number;
   minDpi: number;
   dpiStep: number;
-  maxHosts: number;
   svgId: string;
+  /** Battery percentage (from Solaar), -1 if unknown */
+  battery: number;
 }
 
 export interface KnownButton {
   cid: number;
   name: string;
-  supportsGestures: boolean;
+  /** Solaar name for this button (e.g. "DPI Switch", "Back Button") */
+  solaarName: string;
+  /** Can be diverted to produce HID++ notifications */
+  divertable: boolean;
+  /** Supports raw XY tracking (required for mouse gestures) */
+  rawXy: boolean;
   reprogrammable: boolean;
+  /** SVG overlay position */
   position: string;
 }
 
-// ─── Configuration Model (maps to logid.cfg) ────────────────────────────────
+// ─── Solaar Configuration Model ──────────────────────────────────────────────
 
-export interface LogidConfig {
-  devices: DeviceConfig[];
+/** The full config we send to the server for apply */
+export interface SolaarConfig {
+  deviceName: string;
+  unitId: string;
+  dpi: number;
+  /** Map of button CID → diversion mode (0=Regular, 1=Diverted, 2=Mouse Gestures) */
+  divertKeys: Record<number, 0 | 1 | 2>;
+  /** Gesture rules to write to rules.yaml */
+  rules: SolaarRule[];
 }
 
-export interface DeviceConfig {
-  name: string;
-  dpi?: number;
-  smartshift?: SmartShiftConfig;
-  hiresscroll?: HiResScrollConfig;
-  buttons: ButtonConfig[];
+// ─── Solaar Rules ────────────────────────────────────────────────────────────
+
+export interface SolaarRule {
+  /** Optional comment */
+  comment?: string;
+  condition: SolaarCondition;
+  action: SolaarAction;
 }
 
-export interface SmartShiftConfig {
-  on?: boolean;
-  threshold?: number;
-  defaultThreshold?: number;
+export type SolaarCondition =
+  | { type: 'MouseGesture'; directions: string[] }  // [] = click, ['Mouse Up'], etc.
+  | { type: 'Key'; key: string; event?: 'pressed' | 'released' };
+
+export type SolaarAction =
+  | { type: 'None' }
+  | { type: 'KeyPress'; keys: string[] }       // X11 keysyms: ['Control_L', 'Tab']
+  | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
+  | { type: 'MouseScroll'; horizontal: number; vertical: number }
+  | { type: 'Execute'; command: string[] }      // ['pactl', 'set-sink-volume', ...]
+  | { type: 'RunScript'; script: string; macroKey?: string }; // Run local script via macro key interception
+
+// ─── Action used in the UI gesture grid ──────────────────────────────────────
+
+export type GestureDirection = 'None' | 'Up' | 'Down' | 'Left' | 'Right';
+
+export interface GestureSlotConfig {
+  direction: GestureDirection;
+  action: SolaarAction;
 }
 
-export interface HiResScrollConfig {
-  hires?: boolean;
-  invert?: boolean;
-  target?: boolean;
-}
-
+/** Button config as the UI sees it (before converting to SolaarRule[]) */
 export interface ButtonConfig {
   cid: number;
-  action: Action;
-}
-
-// ─── Actions ─────────────────────────────────────────────────────────────────
-
-export type Action =
-  | { type: 'None' }
-  | { type: 'Keypress'; keys: string[] }
-  | { type: 'Gestures'; gestures: GestureConfig[] }
-  | { type: 'ToggleSmartShift' }
-  | { type: 'ToggleHiresScroll' }
-  | { type: 'CycleDPI'; dpis: number[] }
-  | { type: 'ChangeDPI'; inc: number }
-  | { type: 'ChangeHost'; host: string | number };
-
-export interface GestureConfig {
-  direction: 'None' | 'Up' | 'Down' | 'Left' | 'Right';
-  mode?: 'OnRelease' | 'OnThreshold' | 'OnInterval' | 'OnFewPixels';
-  threshold?: number;
-  action: Action;
+  /** Whether this button uses gesture mode */
+  gestureMode: boolean;
+  /** Actions per direction (when gestureMode = true) */
+  gestures: Record<GestureDirection, SolaarAction>;
+  /** Single action (when gestureMode = false, i.e. simple divert + rule) */
+  simpleAction: SolaarAction;
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
@@ -80,40 +91,64 @@ export interface GestureConfig {
 export interface Profile {
   id: string;
   name: string;
-  deviceLogidName: string;
+  deviceName: string;
   dpi?: number;
-  smartshift?: SmartShiftConfig;
-  hiresscroll?: HiResScrollConfig;
   buttons: ButtonConfig[];
+  windowClasses?: string[];
   createdAt: string;
   updatedAt: string;
 }
 
 // ─── System Actions ──────────────────────────────────────────────────────────
 
-export type SystemActionId =
-  | 'volume-up'
-  | 'volume-down'
-  | 'volume-mute'
-  | 'brightness-up'
-  | 'brightness-down'
-  | 'nightshift-toggle'
-  | 'open-browser'
-  | 'play-pause'
-  | 'next-track'
-  | 'prev-track';
+export type SystemActionCategory = 'media' | 'volume' | 'brightness' | 'system';
 
 export interface SystemAction {
-  id: SystemActionId;
+  id: string;
   label: string;
   description: string;
-  keys: string[];
+  /** Solaar action (KeyPress with X11 keysyms, or Execute with command) */
+  action: SolaarAction;
+  category: SystemActionCategory;
 }
 
-// ─── API Responses ───────────────────────────────────────────────────────────
+// ─── API Response ────────────────────────────────────────────────────────────
 
 export interface ApiResponse<T = unknown> {
   ok: boolean;
   data?: T;
   error?: string;
+}
+
+// ─── Solaar Status ───────────────────────────────────────────────────────────
+
+export type SolaarInstallType = 'flatpak' | 'system' | 'none';
+
+export interface SolaarStatus {
+  installed: boolean;
+  installType: SolaarInstallType;
+  running: boolean;
+  configDir: string;
+  version: string;
+}
+
+// ─── Script (DB-backed) ──────────────────────────────────────────────────────
+
+export interface Script {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  executable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Bootstrap (initial load) ────────────────────────────────────────────────
+
+export interface BootstrapData {
+  devices: KnownDevice[];
+  profiles: Profile[];
+  configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
+  scripts: Script[];
 }

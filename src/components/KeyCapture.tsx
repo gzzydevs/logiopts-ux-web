@@ -1,159 +1,132 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
-// Browser KeyboardEvent.code → Linux key name
-const BROWSER_TO_LINUX: Record<string, string> = {
-  KeyA: 'KEY_A', KeyB: 'KEY_B', KeyC: 'KEY_C', KeyD: 'KEY_D',
-  KeyE: 'KEY_E', KeyF: 'KEY_F', KeyG: 'KEY_G', KeyH: 'KEY_H',
-  KeyI: 'KEY_I', KeyJ: 'KEY_J', KeyK: 'KEY_K', KeyL: 'KEY_L',
-  KeyM: 'KEY_M', KeyN: 'KEY_N', KeyO: 'KEY_O', KeyP: 'KEY_P',
-  KeyQ: 'KEY_Q', KeyR: 'KEY_R', KeyS: 'KEY_S', KeyT: 'KEY_T',
-  KeyU: 'KEY_U', KeyV: 'KEY_V', KeyW: 'KEY_W', KeyX: 'KEY_X',
-  KeyY: 'KEY_Y', KeyZ: 'KEY_Z',
-  Digit0: 'KEY_0', Digit1: 'KEY_1', Digit2: 'KEY_2', Digit3: 'KEY_3',
-  Digit4: 'KEY_4', Digit5: 'KEY_5', Digit6: 'KEY_6', Digit7: 'KEY_7',
-  Digit8: 'KEY_8', Digit9: 'KEY_9',
-  ControlLeft: 'KEY_LEFTCTRL', ControlRight: 'KEY_RIGHTCTRL',
-  ShiftLeft: 'KEY_LEFTSHIFT', ShiftRight: 'KEY_RIGHTSHIFT',
-  AltLeft: 'KEY_LEFTALT', AltRight: 'KEY_RIGHTALT',
-  MetaLeft: 'KEY_LEFTMETA', MetaRight: 'KEY_RIGHTMETA',
-  F1: 'KEY_F1', F2: 'KEY_F2', F3: 'KEY_F3', F4: 'KEY_F4',
-  F5: 'KEY_F5', F6: 'KEY_F6', F7: 'KEY_F7', F8: 'KEY_F8',
-  F9: 'KEY_F9', F10: 'KEY_F10', F11: 'KEY_F11', F12: 'KEY_F12',
-  Escape: 'KEY_ESC', Tab: 'KEY_TAB', Enter: 'KEY_ENTER',
-  Space: 'KEY_SPACE', Backspace: 'KEY_BACKSPACE', Delete: 'KEY_DELETE',
-  ArrowUp: 'KEY_UP', ArrowDown: 'KEY_DOWN',
-  ArrowLeft: 'KEY_LEFT', ArrowRight: 'KEY_RIGHT',
-  Home: 'KEY_HOME', End: 'KEY_END',
-  PageUp: 'KEY_PAGEUP', PageDown: 'KEY_PAGEDOWN',
-  Insert: 'KEY_INSERT', PrintScreen: 'KEY_SYSRQ',
-  Minus: 'KEY_MINUS', Equal: 'KEY_EQUAL',
-  BracketLeft: 'KEY_LEFTBRACE', BracketRight: 'KEY_RIGHTBRACE',
-  Backslash: 'KEY_BACKSLASH', Semicolon: 'KEY_SEMICOLON',
-  Quote: 'KEY_APOSTROPHE', Backquote: 'KEY_GRAVE',
-  Comma: 'KEY_COMMA', Period: 'KEY_DOT', Slash: 'KEY_SLASH',
+/**
+ * Browser keyboard code → X11 keysym mapping.
+ * Kept client-side so the key capture modal works offline.
+ */
+const BROWSER_TO_X11: Record<string, string> = {
+  KeyA: 'a', KeyB: 'b', KeyC: 'c', KeyD: 'd', KeyE: 'e',
+  KeyF: 'f', KeyG: 'g', KeyH: 'h', KeyI: 'i', KeyJ: 'j',
+  KeyK: 'k', KeyL: 'l', KeyM: 'm', KeyN: 'n', KeyO: 'o',
+  KeyP: 'p', KeyQ: 'q', KeyR: 'r', KeyS: 's', KeyT: 't',
+  KeyU: 'u', KeyV: 'v', KeyW: 'w', KeyX: 'x', KeyY: 'y', KeyZ: 'z',
+  Digit0: '0', Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4',
+  Digit5: '5', Digit6: '6', Digit7: '7', Digit8: '8', Digit9: '9',
+  ShiftLeft: 'Shift_L', ShiftRight: 'Shift_R',
+  ControlLeft: 'Control_L', ControlRight: 'Control_R',
+  AltLeft: 'Alt_L', AltRight: 'Alt_R',
+  MetaLeft: 'Super_L', MetaRight: 'Super_R',
+  F1: 'F1', F2: 'F2', F3: 'F3', F4: 'F4', F5: 'F5', F6: 'F6',
+  F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
+  ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+  Home: 'Home', End: 'End', PageUp: 'Page_Up', PageDown: 'Page_Down',
+  Insert: 'Insert', Delete: 'Delete',
+  Backspace: 'BackSpace', Tab: 'Tab', Enter: 'Return', Escape: 'Escape',
+  Space: 'space',
+  Comma: 'comma', Period: 'period', Slash: 'slash', Backslash: 'backslash',
+  BracketLeft: 'bracketleft', BracketRight: 'bracketright',
+  Semicolon: 'semicolon', Quote: 'apostrophe', Backquote: 'grave',
+  Minus: 'minus', Equal: 'equal',
 };
 
-const KEY_DISPLAY: Record<string, string> = {
-  KEY_LEFTCTRL: 'Ctrl', KEY_RIGHTCTRL: 'Ctrl',
-  KEY_LEFTSHIFT: 'Shift', KEY_RIGHTSHIFT: 'Shift',
-  KEY_LEFTALT: 'Alt', KEY_RIGHTALT: 'Alt',
-  KEY_LEFTMETA: 'Super', KEY_RIGHTMETA: 'Super',
-  KEY_ESC: 'Esc', KEY_TAB: 'Tab', KEY_ENTER: 'Enter',
-  KEY_SPACE: 'Space', KEY_BACKSPACE: 'Bksp', KEY_DELETE: 'Del',
-  KEY_UP: '↑', KEY_DOWN: '↓', KEY_LEFT: '←', KEY_RIGHT: '→',
-  KEY_PAGEUP: 'PgUp', KEY_PAGEDOWN: 'PgDn',
+const DISPLAY_NAMES: Record<string, string> = {
+  Control_L: 'Ctrl', Control_R: 'Ctrl', Shift_L: 'Shift', Shift_R: 'Shift',
+  Alt_L: 'Alt', Alt_R: 'Alt', Super_L: 'Super', Super_R: 'Super',
+  Return: 'Enter', BackSpace: 'Backspace', space: 'Space', Escape: 'Esc',
+  Page_Up: 'PgUp', Page_Down: 'PgDn',
+  Up: '↑', Down: '↓', Left: '←', Right: '→', Tab: 'Tab',
 };
 
-function displayKey(k: string) {
-  return KEY_DISPLAY[k] ?? k.replace('KEY_', '');
+export function displayKeysym(keysym: string): string {
+  return DISPLAY_NAMES[keysym] || keysym.replace(/_/g, ' ');
+}
+
+/** Modifiers come first, non-modifiers last */
+function sortKeys(keys: string[]): string[] {
+  const mods = ['Control_L', 'Control_R', 'Shift_L', 'Shift_R', 'Alt_L', 'Alt_R', 'Super_L', 'Super_R'];
+  const modKeys = keys.filter(k => mods.includes(k));
+  const rest = keys.filter(k => !mods.includes(k));
+  return [...modKeys, ...rest];
 }
 
 interface KeyCaptureProps {
-  keys: string[];
-  onChange: (keys: string[]) => void;
+  open: boolean;
+  currentKeys: string[];
+  onConfirm: (keys: string[]) => void;
+  onCancel: () => void;
 }
 
-export default function KeyCapture({ keys, onChange }: KeyCaptureProps) {
-  const [recording, setRecording] = useState(false);
-  const [currentKeys, setCurrentKeys] = useState<Set<string>>(new Set());
-  const inputRef = useRef<HTMLDivElement>(null);
-  const recordingRef = useRef(false);
-  recordingRef.current = recording;
+export default function KeyCapture({ open, currentKeys, onConfirm, onCancel }: KeyCaptureProps) {
+  const keysRef = useRef<Set<string>>(new Set());
+  const displayRef = useRef<HTMLDivElement>(null);
+
+  const updateDisplay = useCallback(() => {
+    if (displayRef.current) {
+      const keys = sortKeys([...keysRef.current]);
+      displayRef.current.textContent = keys.length
+        ? keys.map(displayKeysym).join(' + ')
+        : 'Press keys…';
+    }
+  }, []);
 
   useEffect(() => {
-    if (!recording) return;
-
-    const pressed = new Set<string>();
-    let committed = false;
+    if (!open) return;
+    keysRef.current = new Set();
+    updateDisplay();
 
     const onDown = (e: KeyboardEvent) => {
-      // Block ALL browser behavior: Tab focus, Ctrl+PgDn tab switch, etc.
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
 
-      const linux = BROWSER_TO_LINUX[e.code];
-      if (linux && !pressed.has(linux)) {
-        pressed.add(linux);
-        setCurrentKeys(new Set(pressed));
+      if (e.code === 'Escape') {
+        onCancel();
+        return;
       }
-      return false;
+
+      const sym = BROWSER_TO_X11[e.code];
+      if (sym && !keysRef.current.has(sym)) {
+        keysRef.current.add(sym);
+        updateDisplay();
+      }
     };
 
     const onUp = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
 
-      if (committed || pressed.size === 0) return false;
-      committed = true;
-
-      // Order: modifiers first, then other keys
-      const modifiers = ['KEY_LEFTCTRL', 'KEY_RIGHTCTRL', 'KEY_LEFTSHIFT', 'KEY_RIGHTSHIFT',
-        'KEY_LEFTALT', 'KEY_RIGHTALT', 'KEY_LEFTMETA', 'KEY_RIGHTMETA'];
-      const sorted = [...pressed].sort((a, b) => {
-        const aM = modifiers.includes(a) ? 0 : 1;
-        const bM = modifiers.includes(b) ? 0 : 1;
-        return aM - bM;
-      });
-      onChange(sorted);
-      setRecording(false);
-      setCurrentKeys(new Set());
-      return false;
-    };
-
-    // Block focus changes while recording (prevents Tab from moving focus)
-    const onFocusOut = (e: FocusEvent) => {
-      if (recordingRef.current) {
-        e.preventDefault();
-        e.stopPropagation();
-        inputRef.current?.focus();
+      // On first key release, confirm the combo
+      if (keysRef.current.size > 0) {
+        const result = sortKeys([...keysRef.current]);
+        onConfirm(result);
       }
     };
 
-    // Capture phase (true) = intercept before browser handles them
     window.addEventListener('keydown', onDown, true);
     window.addEventListener('keyup', onUp, true);
-    window.addEventListener('focusout', onFocusOut, true);
     return () => {
       window.removeEventListener('keydown', onDown, true);
       window.removeEventListener('keyup', onUp, true);
-      window.removeEventListener('focusout', onFocusOut, true);
     };
-  }, [recording, onChange]);
+  }, [open, onConfirm, onCancel, updateDisplay]);
 
-  const displayKeys = recording ? [...currentKeys] : keys;
+  if (!open) return null;
 
   return (
-    <div className="key-capture">
-      <div
-        ref={inputRef}
-        className={`key-capture-input ${recording ? 'recording' : ''}`}
-        tabIndex={0}
-        onClick={() => { setRecording(true); inputRef.current?.focus(); }}
-        onBlur={() => {
-          if (!recordingRef.current) {
-            setRecording(false);
-            setCurrentKeys(new Set());
-          }
-        }}
-      >
-        {recording
-          ? (displayKeys.length > 0
-            ? displayKeys.map(displayKey).join(' + ')
-            : '⌨ Press keys...')
-          : (keys.length > 0
-            ? keys.map(displayKey).join(' + ')
-            : 'Click to record shortcut')
-        }
+    <div className="modal-overlay">
+      <div className="modal key-capture">
+        <h3>Press a Key Combination</h3>
+        <div ref={displayRef} className="key-display">Press keys…</div>
+        <p className="hint">
+          Hold modifier keys (Ctrl, Shift, Alt, Super) then press a regular key.
+          Release to confirm. Press Escape to cancel.
+        </p>
+        {currentKeys.length > 0 && (
+          <p className="current">
+            Current: <strong>{currentKeys.map(displayKeysym).join(' + ')}</strong>
+          </p>
+        )}
+        <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
       </div>
-      {keys.length > 0 && !recording && (
-        <div className="key-tags">
-          {keys.map((k) => (
-            <span key={k} className="key-tag">{k}</span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
