@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppContext } from '../context/AppContext';
 import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine, Plus, Trash2, X } from 'lucide-react';
 import './Topbar.css';
@@ -179,8 +180,9 @@ export const Topbar: React.FC = () => {
             </div>
         </header>
 
-            {/* New Profile Modal — rendered outside <header> to avoid backdrop-filter containment */}
-            {showNewProfile && (
+            {/* New Profile Modal — rendered via Portal at document.body to avoid
+                stacking-context issues from topbar backdrop-filter / sticky / overflow */}
+            {showNewProfile && createPortal(
                 <div className="topbar-modal-overlay" onClick={() => setShowNewProfile(false)}>
                     <div className="topbar-modal" onClick={e => e.stopPropagation()}>
                         <div className="topbar-modal-header">
@@ -227,7 +229,8 @@ export const Topbar: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );
