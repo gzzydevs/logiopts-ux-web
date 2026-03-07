@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { saveDeviceLayout } from '../hooks/useApi';
+import { PenLine, X, Save, Loader2 } from 'lucide-react';
 import classNames from 'classnames';
 import './LayoutEditor.css';
 
@@ -12,6 +13,9 @@ const GenericMouseSVG = () => (
         <path d="M100 20 L100 135" stroke="#ffffff" strokeOpacity="0.1" strokeWidth="2" />
     </svg>
 );
+
+/** Factor for rounding to 1 decimal place */
+const POSITION_PRECISION = 10;
 
 interface LayoutEditorProps {
     onExit: () => void;
@@ -77,7 +81,10 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
 
         setDraftLayout(prev => ({
             ...prev,
-            [cid]: { x: Math.round(clampedX * 10) / 10, y: Math.round(clampedY * 10) / 10 },
+            [cid]: {
+                x: Math.round(clampedX * POSITION_PRECISION) / POSITION_PRECISION,
+                y: Math.round(clampedY * POSITION_PRECISION) / POSITION_PRECISION,
+            },
         }));
         setDraggingCid(null);
     }, []);
@@ -127,7 +134,7 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
     return (
         <div className="layout-editor-wrapper">
             <div className="layout-editor-banner">
-                <span className="layout-edit-badge">✏️ LAYOUT EDIT MODE</span>
+                <span className="layout-edit-badge"><PenLine size={14} /> LAYOUT EDIT MODE</span>
                 <span className="layout-edit-hint">Drag buttons to position them on the mouse</span>
             </div>
 
@@ -192,14 +199,15 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
                     onClick={handleCancel}
                     disabled={saving}
                 >
-                    ✖ Cancel
+                    <X size={16} /> Cancel
                 </button>
                 <button
                     className="layout-btn layout-save-btn"
                     onClick={handleSave}
                     disabled={saving}
                 >
-                    {saving ? '⏳ Saving...' : '💾 Save Layout'}
+                    {saving ? <Loader2 size={16} className="spin-icon" /> : <Save size={16} />}
+                    {saving ? 'Saving...' : 'Save Layout'}
                 </button>
             </div>
         </div>
