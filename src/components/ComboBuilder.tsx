@@ -153,17 +153,15 @@ interface ComboBuilderProps {
 }
 
 export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }: ComboBuilderProps) {
-    // CB-01: use array to preserve selection order
+    // Array (not Set) so modifiers appear in the order the user clicked them
     const [selectedMods, setSelectedMods] = useState<string[]>([]);
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [activeGroup, setActiveGroup] = useState(0);
-    // CB-06: search filter
     const [searchQuery, setSearchQuery] = useState('');
 
     // Sync from current keys on open
     useEffect(() => {
         if (!open) return;
-        // CB-01: preserve order from input array
         const mods: string[] = [];
         let mainKey: string | null = null;
 
@@ -184,7 +182,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
         setSearchQuery('');
     }, [open, currentKeys]);
 
-    // CB-03: Enter to confirm, Escape to cancel
+    // Enter confirms, Escape cancels
     useEffect(() => {
         if (!open) return;
         function onKeyDown(e: KeyboardEvent) {
@@ -201,7 +199,6 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
 
     if (!open) return null;
 
-    // CB-01: array-based toggle preserves click order
     function toggleMod(keysym: string) {
         setSelectedMods(prev => {
             if (prev.includes(keysym)) return prev.filter(k => k !== keysym);
@@ -209,7 +206,6 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
         });
     }
 
-    // CB-01: build combo from ordered array
     function buildCombo(): string[] {
         const parts = [...selectedMods];
         if (selectedKey) parts.push(selectedKey);
@@ -225,7 +221,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
         }
     }
 
-    // CB-06: filtered groups (or single group when no search)
+    // When search is active, filter across all groups; otherwise show the selected tab
     const filteredGroups = searchQuery.trim()
         ? KEY_GROUPS.map(g => ({
             ...g,
@@ -243,7 +239,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
             <div className="combo-builder" onClick={e => e.stopPropagation()}>
                 <h3>Build Key Combo</h3>
 
-                {/* Preview + CB-02: Clear button */}
+                {/* Preview + clear button */}
                 <div className="combo-preview">
                     <span className={combo.length > 0 ? 'combo-active' : 'combo-empty'}>
                         {preview}
@@ -274,7 +270,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
                     </div>
                 </div>
 
-                {/* CB-06: Search input */}
+                {/* Search input — filters across all key groups when non-empty */}
                 <input
                     type="text"
                     className="combo-search"
@@ -288,7 +284,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
                     <label className="combo-section-label">Key</label>
                     {!searchQuery.trim() && (
                         <div className="combo-tabs">
-                            {/* CB-07: Presets tab */}
+                            {/* Presets tab */}
                             <button
                                 className={`combo-tab ${activeGroup === PRESETS_TAB ? 'active' : ''}`}
                                 onClick={() => setActiveGroup(PRESETS_TAB)}
@@ -307,7 +303,7 @@ export default function ComboBuilder({ currentKeys, onConfirm, onCancel, open }:
                         </div>
                     )}
 
-                    {/* CB-07: Presets grid */}
+                    {/* Presets grid — clicking a preset auto-confirms */}
                     {showPresets && (
                         <div className="combo-keys combo-presets">
                             {PRESETS.map(preset => (
