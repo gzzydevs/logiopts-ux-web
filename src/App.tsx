@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import { useAppContext } from './context/AppContext';
 import { Topbar } from './components/Topbar';
 import { MousePreview } from './components/MousePreview';
+import { LayoutEditor } from './components/LayoutEditor';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ToastContainer } from './components/Toast';
 import './App.css';
 
 export default function App() {
-  const { appStatus, bootstrap } = useAppContext();
+  const { appStatus, bootstrap, isLayoutEditMode, setLayoutEditMode } = useAppContext();
 
   useEffect(() => {
     bootstrap();
@@ -39,11 +40,15 @@ export default function App() {
           </div>
         )}
 
-        {appStatus === 'connected' && (
+        {appStatus === 'connected' && !isLayoutEditMode && (
           <div className="app-connected-layout">
             <MousePreview />
             <SettingsPanel />
           </div>
+        )}
+
+        {appStatus === 'connected' && isLayoutEditMode && (
+          <LayoutEditor onExit={() => setLayoutEditMode(false)} />
         )}
       </div>
 

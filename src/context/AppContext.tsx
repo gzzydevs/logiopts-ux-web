@@ -41,6 +41,7 @@ interface AppContextType {
     windowWatcherActive: boolean;
     selectedCid: number | null;
     dirty: boolean;
+    isLayoutEditMode: boolean;
 
     // Actions
     bootstrap: () => Promise<void>;
@@ -53,6 +54,7 @@ interface AppContextType {
     addToast: (toast: Omit<Toast, 'id'>) => void;
     removeToast: (id: string) => void;
     setWindowWatcherActive: (active: boolean) => void;
+    setLayoutEditMode: (active: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -91,6 +93,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [windowWatcherActive, setWindowWatcherActive] = useState(false);
     const [selectedCid, setSelectedCid] = useState<number | null>(null);
     const [dirty, setDirty] = useState(false);
+    const [isLayoutEditMode, setLayoutEditMode] = useState(false);
     const toastIdRef = useRef(0);
 
     // ─── Toast management ──────────────────────────────────────────────────────
@@ -319,6 +322,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             windowWatcherActive,
             selectedCid,
             dirty,
+            isLayoutEditMode,
 
             bootstrap,
             detectDevice,
@@ -330,6 +334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addToast,
             removeToast,
             setWindowWatcherActive,
+            setLayoutEditMode,
         }}>
             {children}
         </AppContext.Provider>

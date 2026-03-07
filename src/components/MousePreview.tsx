@@ -32,17 +32,28 @@ const POSITION_CONFIG: Record<string, { className: string; labelSide: 'left' | '
     right: { className: 'node-right', labelSide: 'left' },
 };
 
-export const MousePreview: React.FC = () => {
+/** Determine label side from X position (layout-based) */
+function labelSideFromX(x: number): 'left' | 'right' {
+    return x < 50 ? 'right' : 'left';
+}
+
+interface MousePreviewProps {
+    editMode?: boolean;
+}
+
+export const MousePreview: React.FC<MousePreviewProps> = ({ editMode = false }) => {
     const { device, selectedCid, setSelectedCid, buttons } = useAppContext();
 
     if (!device) return null;
 
-    // If there are any divertable buttons, only show those — non-divertable ones
-    // (Left Click, Right Click) can't be configured and just clutter the view.
+    // In edit mode, show ALL buttons (including non-divertable) so user can position them.
+    // In normal mode, only show divertable buttons.
     const hasAnyDivertable = device.buttons.some(b => b.divertable);
-    const visibleButtons = hasAnyDivertable
-        ? device.buttons.filter(b => b.divertable)
-        : device.buttons;
+    const visibleButtons = editMode
+        ? device.buttons
+        : (hasAnyDivertable
+            ? device.buttons.filter(b => b.divertable)
+            : device.buttons);
 
     // Find the selected button info for the configurator
     const selectedButton = device.buttons.find(b => b.cid === selectedCid);
@@ -54,26 +65,39 @@ export const MousePreview: React.FC = () => {
                 <GenericMouseSVG />
 
                 {visibleButtons.map(btn => {
+                    const hasLayout = btn.layoutX !== undefined && btn.layoutY !== undefined;
                     const posConfig = POSITION_CONFIG[btn.position] || {
                         className: `node-pos-${btn.position}`,
                         labelSide: 'right' as const,
                     };
 
+                    // If button has layout coordinates, use inline positioning
+                    const inlineStyle = hasLayout
+                        ? { top: `${btn.layoutY}%`, left: `${btn.layoutX}%` }
+                        : undefined;
+
+                    const labelSide = hasLayout
+                        ? labelSideFromX(btn.layoutX!)
+                        : posConfig.labelSide;
+
                     return (
                         <div
                             key={btn.cid}
-                            className={classNames('node', posConfig.className, {
+                            className={classNames('node', {
+                                [posConfig.className]: !hasLayout,
                                 active: selectedCid === btn.cid,
-                                'non-divertable': !btn.divertable,
+                                'non-divertable': !btn.divertable && !editMode,
                             })}
+                            style={inlineStyle}
                             onClick={() => {
+                                if (editMode) return; // Don't select buttons in edit mode
                                 if (btn.divertable) {
                                     setSelectedCid(selectedCid === btn.cid ? null : btn.cid);
                                 }
                             }}
                             title={btn.divertable ? btn.name : `${btn.name} (not configurable)`}
                         >
-                            <div className={classNames('node-label-container', `label-${posConfig.labelSide}`)}>
+                            <div className={classNames('node-label-container', `label-${labelSide}`)}>
                                 <div className="node-label">{btn.name}</div>
                             </div>
                         </div>
@@ -81,7 +105,7 @@ export const MousePreview: React.FC = () => {
                 })}
             </div>
 
-            {selectedCid !== null && selectedButton && (
+            {!editMode && selectedCid !== null && selectedButton && (
                 <ActionConfigurator
                     cid={selectedCid}
                     button={selectedButton}

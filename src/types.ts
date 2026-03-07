@@ -21,6 +21,10 @@ export interface KnownButton {
   rawXy: boolean;
   reprogrammable: boolean;
   position: string;
+  /** Layout X position in % (0..100) relative to mouse canvas */
+  layoutX?: number;
+  /** Layout Y position in % (0..100) relative to mouse canvas */
+  layoutY?: number;
 }
 
 export type GestureDirection = 'None' | 'Up' | 'Down' | 'Left' | 'Right';

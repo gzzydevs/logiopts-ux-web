@@ -1,0 +1,132 @@
+/* ═══════════════════════════════════════════════
+   LAYOUT EDITOR
+   Wraps the mouse canvas with edit mode UI.
+═══════════════════════════════════════════════ */
+
+.layout-editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+}
+
+/* ─── Banner ─────────────────────────────────── */
+
+.layout-editor-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    background: rgba(130, 170, 255, 0.08);
+    border: 1px solid rgba(130, 170, 255, 0.25);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.layout-edit-badge {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #82aaff;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.layout-edit-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #888);
+}
+
+/* ─── Canvas area ────────────────────────────── */
+
+.layout-editor-canvas-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+}
+
+.layout-canvas {
+    border: 2px dashed rgba(130, 170, 255, 0.2);
+    border-radius: 16px;
+    background: rgba(130, 170, 255, 0.02);
+}
+
+/* ─── Draggable nodes ────────────────────────── */
+
+.layout-node {
+    cursor: grab;
+    border-color: rgba(130, 170, 255, 0.5);
+    background: rgba(130, 170, 255, 0.15);
+}
+
+.layout-node:hover {
+    background: rgba(130, 170, 255, 0.3);
+    border-color: #82aaff;
+    box-shadow: 0 0 12px rgba(130, 170, 255, 0.3);
+}
+
+.layout-node.layout-dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+
+.layout-node.layout-positioned {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.layout-node.layout-positioned:hover {
+    background: rgba(34, 197, 94, 0.3);
+    border-color: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+/* ─── Action buttons ─────────────────────────── */
+
+.layout-editor-actions {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.layout-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+}
+
+.layout-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.layout-cancel-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.layout-cancel-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.layout-save-btn {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(130, 170, 255, 0.2));
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.layout-save-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(130, 170, 255, 0.3));
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+}

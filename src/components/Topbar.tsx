@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery } from 'lucide-react';
+import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine } from 'lucide-react';
 import './Topbar.css';
 
 export const Topbar: React.FC = () => {
@@ -9,6 +9,7 @@ export const Topbar: React.FC = () => {
         profiles, activeProfileId, selectProfile,
         saveStatus, applyStatus, dirty,
         saveConfig, applyCurrentConfig,
+        isLayoutEditMode, setLayoutEditMode,
     } = useAppContext();
 
     return (
@@ -17,6 +18,14 @@ export const Topbar: React.FC = () => {
                 <h1>LogiTux</h1>
                 <span>MACROS CONFIGURATOR</span>
             </div>
+
+            {/* Edit mode badge */}
+            {isLayoutEditMode && (
+                <div className="layout-mode-indicator">
+                    <PenLine size={14} />
+                    <span>EDIT MODE</span>
+                </div>
+            )}
 
             {/* Device display */}
             <div className="device-selector" style={{ marginRight: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -51,6 +60,7 @@ export const Topbar: React.FC = () => {
                             className="device-dropdown"
                             value={activeProfileId || ''}
                             onChange={(e) => selectProfile(e.target.value)}
+                            disabled={isLayoutEditMode}
                             style={{
                                 background: 'rgba(255,255,255,0.05)',
                                 border: '1px solid var(--border)',
@@ -60,7 +70,8 @@ export const Topbar: React.FC = () => {
                                 appearance: 'none',
                                 outline: 'none',
                                 fontSize: '0.9rem',
-                                cursor: 'pointer'
+                                cursor: isLayoutEditMode ? 'not-allowed' : 'pointer',
+                                opacity: isLayoutEditMode ? 0.4 : 1,
                             }}
                         >
                             {profiles.map(p => (
@@ -76,12 +87,22 @@ export const Topbar: React.FC = () => {
                 )}
             </div>
 
-            {/* Save & Apply buttons */}
+            {/* Save & Apply & Layout buttons */}
             <div className="topbar-actions" style={{ marginLeft: '24px', display: 'flex', gap: '8px' }}>
+                {!isLayoutEditMode && device && (
+                    <button
+                        className="action-btn layout-edit-btn"
+                        onClick={() => setLayoutEditMode(true)}
+                        title="Edit button positions on the mouse"
+                    >
+                        <PenLine size={16} />
+                        Layout
+                    </button>
+                )}
                 <button
                     className={`action-btn save-btn ${saveStatus}`}
                     onClick={saveConfig}
-                    disabled={saveStatus === 'saving' || !activeProfileId || !dirty}
+                    disabled={saveStatus === 'saving' || !activeProfileId || !dirty || isLayoutEditMode}
                     title="Save configuration to database"
                 >
                     {saveStatus === 'saving' ? (
@@ -98,7 +119,7 @@ export const Topbar: React.FC = () => {
                 <button
                     className={`action-btn apply-btn ${applyStatus}`}
                     onClick={applyCurrentConfig}
-                    disabled={applyStatus === 'applying' || !activeProfileId}
+                    disabled={applyStatus === 'applying' || !activeProfileId || isLayoutEditMode}
                     title="Apply configuration to Solaar"
                 >
                     {applyStatus === 'applying' ? (

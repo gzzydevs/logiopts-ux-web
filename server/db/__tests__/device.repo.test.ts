@@ -16,7 +16,7 @@ testDb.exec(schema);
 // Mock the db/index module to return our test DB
 jest.mock('../index', () => testDb);
 
-import { upsertDevice, getAllDevices, getDeviceById, deleteDevice } from '../repositories/device.repo';
+import { upsertDevice, getAllDevices, getDeviceById, deleteDevice, updateDeviceLayout } from '../repositories/device.repo';
 import type { KnownDevice } from '../../types';
 
 function makeDevice(overrides: Partial<KnownDevice> = {}): KnownDevice {
@@ -97,5 +97,50 @@ describe('device.repo', () => {
         upsertDevice(makeDevice());
         deleteDevice('unit-123');
         expect(getDeviceById('unit-123')).toBeNull();
+    });
+
+    it('should update device button layout', () => {
+        upsertDevice(makeDevice());
+
+        const layout: Record<number, { x: number; y: number }> = {
+            86: { x: 20.5, y: 43.0 },
+            253: { x: 50.0, y: 50.0 },
+        };
+        updateDeviceLayout('unit-123', layout);
+
+        const result = getDeviceById('unit-123')!;
+        expect(result.buttons[0].cid).toBe(86);
+        expect(result.buttons[0].layoutX).toBe(20.5);
+        expect(result.buttons[0].layoutY).toBe(43.0);
+        expect(result.buttons[1].cid).toBe(253);
+        expect(result.buttons[1].layoutX).toBe(50.0);
+        expect(result.buttons[1].layoutY).toBe(50.0);
+    });
+
+    it('should preserve button layout on upsert', () => {
+        upsertDevice(makeDevice());
+        updateDeviceLayout('unit-123', { 86: { x: 15, y: 30 } });
+
+        // Upsert again (simulating re-detection)
+        upsertDevice(makeDevice({ battery: 99 }));
+
+        const result = getDeviceById('unit-123')!;
+        expect(result.battery).toBe(99);
+        // Layout should be preserved
+        expect(result.buttons[0].layoutX).toBe(15);
+        expect(result.buttons[0].layoutY).toBe(30);
+    });
+
+    it('should not fail when updating layout for non-existent device', () => {
+        expect(() => {
+            updateDeviceLayout('nonexistent', { 86: { x: 10, y: 20 } });
+        }).not.toThrow();
+    });
+
+    it('should return buttons without layoutX/Y when no layout saved', () => {
+        upsertDevice(makeDevice());
+        const result = getDeviceById('unit-123')!;
+        expect(result.buttons[0].layoutX).toBeUndefined();
+        expect(result.buttons[0].layoutY).toBeUndefined();
     });
 });

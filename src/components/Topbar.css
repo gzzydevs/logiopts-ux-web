@@ -209,3 +209,37 @@
   font-size: 0.75rem;
   color: var(--text-secondary, #888);
 }
+
+/* ─── Layout Edit Button & Indicator ──────────────────────────────────────── */
+
+.layout-edit-btn {
+  background: rgba(130, 170, 255, 0.08);
+  border-color: rgba(130, 170, 255, 0.2);
+  color: #82aaff;
+}
+
+.layout-edit-btn:hover:not(:disabled) {
+  background: rgba(130, 170, 255, 0.15);
+  border-color: rgba(130, 170, 255, 0.4);
+}
+
+.layout-mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: rgba(130, 170, 255, 0.12);
+  border: 1px solid rgba(130, 170, 255, 0.3);
+  color: #82aaff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-right: 12px;
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(130, 170, 255, 0.3); }
+  50% { border-color: rgba(130, 170, 255, 0.6); }
+}
