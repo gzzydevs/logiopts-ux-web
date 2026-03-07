@@ -53,6 +53,9 @@ export const ActionConfigurator: React.FC<Props> = ({ cid, button, config: exter
     const config = externalConfig || makeDefaultConfig(cid);
     const canGesture = button.divertable && button.rawXy;
 
+    const hasSimpleAction = config.simpleAction.type !== 'None';
+    const hasGestures = Object.values(config.gestures).some(a => a.type !== 'None');
+
     const setGestureMode = (gestureMode: boolean) => {
         updateButton(cid, { gestureMode });
     };
@@ -111,6 +114,9 @@ export const ActionConfigurator: React.FC<Props> = ({ cid, button, config: exter
                                 }}
                             >
                                 Simple Action
+                                {hasSimpleAction && config.gestureMode && (
+                                    <span className="tab-dot">●</span>
+                                )}
                             </button>
                             <button
                                 className={`mode-btn ${config.gestureMode ? 'active' : ''}`}
@@ -124,8 +130,23 @@ export const ActionConfigurator: React.FC<Props> = ({ cid, button, config: exter
                                 }}
                             >
                                 Mouse Gestures
+                                {hasGestures && !config.gestureMode && (
+                                    <span className="tab-dot">●</span>
+                                )}
                             </button>
                         </div>
+                    )}
+
+                    {/* Warning: gesture mode active but no gestures configured */}
+                    {canGesture && config.gestureMode && !hasGestures && (
+                        <p className="hint gesture-warning" style={{
+                            color: 'var(--accent)', fontSize: '0.78rem',
+                            marginBottom: '12px', padding: '8px 12px',
+                            background: 'rgba(255,107,138,0.08)',
+                            borderRadius: '6px', border: '1px solid rgba(255,107,138,0.2)',
+                        }}>
+                            No gestures configured — simple action will be used
+                        </p>
                     )}
 
                     {/* Action configuration */}

@@ -381,3 +381,9 @@
     color: var(--text-secondary, #888);
     margin-bottom: 16px;
 }
+
+.tab-dot {
+    color: var(--accent, #ff6b8a);
+    margin-left: 4px;
+    font-size: 0.7em;
+}
