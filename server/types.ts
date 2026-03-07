@@ -30,6 +30,12 @@ export interface KnownButton {
   reprogrammable: boolean;
   /** SVG overlay position */
   position: string;
+  /** Layout X position in % (0..100) relative to mouse canvas — set by layout editor */
+  layoutX?: number;
+  /** Layout Y position in % (0..100) relative to mouse canvas — set by layout editor */
+  layoutY?: number;
+  /** Manual label side override — set by layout editor */
+  labelSide?: 'left' | 'right';
 }
 
 // ─── Solaar Configuration Model ──────────────────────────────────────────────

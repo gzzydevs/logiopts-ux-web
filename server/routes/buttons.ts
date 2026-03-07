@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow } from '../services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES, SYSTEM_ACTIONS } from '../services/deviceDatabase.js';
-import { upsertDevice } from '../db/repositories/device.repo.js';
+import { upsertDevice, updateDeviceLayout, getDeviceById, getAllDevices } from '../db/repositories/device.repo.js';
 import { setCurrentDevice } from '../state/memory-store.js';
 import type { KnownDevice, KnownButton } from '../types.js';
 
@@ -104,6 +104,31 @@ router.get('/device', async (_req, res) => {
 // GET /api/device/system-actions
 router.get('/device/system-actions', (_req, res) => {
   res.json({ ok: true, data: SYSTEM_ACTIONS });
+});
+
+// PUT /api/device/:id/layout — save button layout positions
+router.put('/device/:id/layout', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { layout } = req.body as { layout: Record<number, { x: number; y: number }> };
+
+    if (!layout || typeof layout !== 'object') {
+      return res.status(400).json({ ok: false, error: 'Missing or invalid layout object' });
+    }
+
+    updateDeviceLayout(id, layout);
+
+    // Re-load the device and update memory store
+    const device = getDeviceById(id);
+    if (device) {
+      setCurrentDevice(device);
+    }
+
+    res.json({ ok: true, data: { saved: true } });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
 });
 
 export default router;

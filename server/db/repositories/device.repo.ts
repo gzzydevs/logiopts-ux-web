@@ -28,18 +28,33 @@ interface DeviceMetadata {
     dpiStep: number;
     battery: number;
     buttons: KnownButton[];
+    /** Per-button layout positions set by the layout editor */
+    buttonLayout?: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function rowToDevice(row: DeviceRow): KnownDevice {
     const meta: DeviceMetadata = JSON.parse(row.metadata);
+    // Apply saved layout positions to buttons
+    const buttons = meta.buttons.map(btn => {
+        if (meta.buttonLayout && meta.buttonLayout[btn.cid]) {
+            const pos = meta.buttonLayout[btn.cid];
+            return {
+                ...btn,
+                layoutX: pos.x,
+                layoutY: pos.y,
+                ...(pos.labelSide ? { labelSide: pos.labelSide } : {}),
+            };
+        }
+        return btn;
+    });
     return {
         displayName: row.displayName,
         solaarName: row.name,
         unitId: row.id,
         pid: meta.pid,
-        buttons: meta.buttons,
+        buttons,
         maxDpi: meta.maxDpi,
         minDpi: meta.minDpi,
         dpiStep: meta.dpiStep,
@@ -73,6 +88,14 @@ const stmts = {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function upsertDevice(device: KnownDevice): void {
+    // Preserve existing buttonLayout if present in DB
+    const existing = stmts.getById.get(device.unitId) as DeviceRow | undefined;
+    let existingLayout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }> | undefined;
+    if (existing) {
+        const existingMeta: DeviceMetadata = JSON.parse(existing.metadata);
+        existingLayout = existingMeta.buttonLayout;
+    }
+
     const metadata: DeviceMetadata = {
         pid: device.pid,
         maxDpi: device.maxDpi,
@@ -80,6 +103,7 @@ export function upsertDevice(device: KnownDevice): void {
         dpiStep: device.dpiStep,
         battery: device.battery,
         buttons: device.buttons,
+        ...(existingLayout ? { buttonLayout: existingLayout } : {}),
     };
 
     stmts.upsert.run({
@@ -89,6 +113,26 @@ export function upsertDevice(device: KnownDevice): void {
         model: device.svgId,
         image: null,
         metadata: JSON.stringify(metadata),
+    });
+}
+
+export function updateDeviceLayout(
+    deviceId: string,
+    layout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>,
+): void {
+    const row = stmts.getById.get(deviceId) as DeviceRow | undefined;
+    if (!row) return;
+
+    const meta: DeviceMetadata = JSON.parse(row.metadata);
+    meta.buttonLayout = layout;
+
+    stmts.upsert.run({
+        id: row.id,
+        name: row.name,
+        displayName: row.displayName,
+        model: row.model,
+        image: row.image,
+        metadata: JSON.stringify(meta),
     });
 }
 

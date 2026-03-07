@@ -117,3 +117,15 @@ export function runAction(script: string, args: string[] = []): Promise<{ output
     body: JSON.stringify({ args }),
   });
 }
+
+// ─── Device Layout ───────────────────────────────────────────────────────────
+
+export function saveDeviceLayout(
+  deviceId: string,
+  layout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>,
+): Promise<{ saved: boolean }> {
+  return api<{ saved: boolean }>(`/device/${deviceId}/layout`, {
+    method: 'PUT',
+    body: JSON.stringify({ layout }),
+  });
+}
