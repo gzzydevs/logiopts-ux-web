@@ -272,6 +272,7 @@ app.get('/{*path}', (_req, res) => {
 });
 
 if (!MOCK_MODE) {
+
 // Window Watcher event handler
 // Composite key "windowClass::profileId" — dedup on the (window, target-profile) pair so
 // that switching to a different profile for the same window (e.g. a newly-created profile)
