@@ -40,7 +40,7 @@ export const Topbar: React.FC = () => {
     const handleSaveWindowClasses = async () => {
         if (!activeProfileId) return;
         const wc = editWindowClasses.split(',').map(s => s.trim()).filter(Boolean);
-        await updateProfileMeta(activeProfileId, { windowClasses: wc });
+        await updateProfileMeta(activeProfileId, { windowClasses: wc.length > 0 ? wc : undefined });
         setShowProfileSettings(false);
     };
 
@@ -106,11 +106,15 @@ export const Topbar: React.FC = () => {
                                 opacity: isLayoutEditMode ? 0.4 : 1,
                             }}
                         >
-                            {profiles.map(p => (
-                                <option key={p.id} value={p.id} style={{ background: '#1a1b26' }}>
-                                    {p.name}{p.id === appliedProfileId ? ' ● Active' : ''}{p.windowClasses?.length ? ` [${p.windowClasses.join(', ')}]` : ''}
-                                </option>
-                            ))}
+                            {profiles.map(p => {
+                                const activeBadge = p.id === appliedProfileId ? ' ● Active' : '';
+                                const appsSuffix = p.windowClasses?.length ? ` [${p.windowClasses.join(', ')}]` : '';
+                                return (
+                                    <option key={p.id} value={p.id} style={{ background: '#1a1b26' }}>
+                                        {p.name}{activeBadge}{appsSuffix}
+                                    </option>
+                                );
+                            })}
                         </select>
                         <ChevronDown size={16} color="var(--text-secondary)" style={{ marginLeft: '-30px', pointerEvents: 'none' }} />
                     </div>

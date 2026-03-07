@@ -350,7 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 name,
                 deviceName: device.unitId,
                 buttons: blankButtons,
-                windowClasses: windowClasses && windowClasses.length > 0 ? windowClasses : undefined,
+                windowClasses: windowClasses?.length ? windowClasses : undefined,
                 createdAt: '',
                 updatedAt: '',
             };
