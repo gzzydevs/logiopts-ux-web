@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+dist-electron/
+dist-electron-packages/
 
 # Vite cache
 .vite/

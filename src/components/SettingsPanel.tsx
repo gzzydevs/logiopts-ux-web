@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
 import './SettingsPanel.css';
@@ -6,12 +6,18 @@ import './SettingsPanel.css';
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { windowWatcherActive, setWindowWatcherActive } = useAppContext();
+    const [autostart, setAutostart] = useState(false);
 
     useEffect(() => {
         fetch('/api/watcher/status')
             .then(res => res.json())
             .then(data => setWindowWatcherActive(data.active))
             .catch(console.error);
+
+        // Load autostart state from Electron (if running inside Electron)
+        if (window.electronAPI) {
+            window.electronAPI.getAutostart().then(setAutostart).catch(console.error);
+        }
     }, [setWindowWatcherActive]);
 
     const toggleLanguage = () => {
@@ -25,6 +31,11 @@ export const SettingsPanel: React.FC = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ active: checked })
         }).catch(console.error);
+    };
+
+    const handleAutostartToggle = async (checked: boolean) => {
+        setAutostart(checked);
+        await window.electronAPI?.setAutostart(checked);
     };
 
     return (
@@ -42,6 +53,20 @@ export const SettingsPanel: React.FC = () => {
                     <span className="slider"></span>
                 </label>
             </div>
+
+            {window.electronAPI && (
+                <div className="setting-item">
+                    <span>{t('settings.autostart', 'Start on login')}</span>
+                    <label className="switch">
+                        <input
+                            type="checkbox"
+                            checked={autostart}
+                            onChange={(e) => handleAutostartToggle(e.target.checked)}
+                        />
+                        <span className="slider"></span>
+                    </label>
+                </div>
+            )}
 
             <div className="setting-item">
                 <span>Language</span>

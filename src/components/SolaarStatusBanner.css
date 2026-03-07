@@ -1,0 +1,46 @@
+.solaar-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.solaar-banner--error {
+  background: rgba(220, 50, 50, 0.2);
+  border-bottom: 1px solid rgba(220, 50, 50, 0.4);
+  color: #ff8a8a;
+}
+
+.solaar-banner--warning {
+  background: rgba(220, 180, 50, 0.15);
+  border-bottom: 1px solid rgba(220, 180, 50, 0.3);
+  color: #ffd966;
+}
+
+.solaar-banner-link {
+  color: #ff8a8a;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.solaar-banner-link:hover {
+  color: #ffaaaa;
+}
+
+.solaar-banner-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 4px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.solaar-banner-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

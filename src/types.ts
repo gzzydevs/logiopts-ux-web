@@ -122,3 +122,18 @@ export interface SolaarStatus {
   configDir: string;
   version: string;
 }
+
+// Electron IPC bridge — exposed via preload script
+export interface ElectronAPI {
+  onSolaarStatus: (cb: (status: { running: boolean; installed: boolean }) => void) => void;
+  startSolaar: () => Promise<void>;
+  setAutostart: (enabled: boolean) => Promise<void>;
+  getAutostart: () => Promise<boolean>;
+  isElectron: true;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
