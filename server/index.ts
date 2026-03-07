@@ -254,38 +254,43 @@ app.get('/{*path}', (_req, res) => {
 });
 
 // Window Watcher event handler
+// Track last profile applied by the watcher so we skip redundant switches
+let lastWatcherProfileId: string | null = null;
+
 windowWatcher.on('window-changed', async (windowClass: string) => {
   console.log(`[WindowWatcher] Active window changed to: ${windowClass}`);
   const profiles = await getAllProfiles();
 
-  const matchedProfile = profiles.find(p => p.windowClasses?.includes(windowClass));
+  // Find a profile whose windowClasses contain the active window class
+  const matchedProfile = profiles.find(p =>
+    p.windowClasses && p.windowClasses.length > 0 && p.windowClasses.includes(windowClass)
+  );
 
-  if (matchedProfile) {
-    console.log(`[WindowWatcher] Applying profile '${matchedProfile.name}' for '${windowClass}'`);
-    const success = await applyProfileToSolaar(matchedProfile);
-    if (success) {
-      // Emit event but don't change activeProfileId — window-matched profiles are temporary
-      emitStoreEvent({
-        type: 'profile-switched',
-        payload: { profileId: matchedProfile.id, profileName: matchedProfile.name, trigger: 'watcher' },
-      });
-    }
-  } else {
-    // Fallback: active profile → default → first available
-    const activeId = getActiveProfileId();
-    const fallback = profiles.find(p => p.id === activeId)
-        ?? profiles.find(p => p.name.toLowerCase() === 'default')
-        ?? profiles[0];
-    if (fallback) {
-      console.log(`[WindowWatcher] Reverting to profile '${fallback.name}'`);
-      const success = await applyProfileToSolaar(fallback);
-      if (success) {
-        emitStoreEvent({
-          type: 'profile-switched',
-          payload: { profileId: fallback.id, profileName: fallback.name, trigger: 'watcher' },
-        });
-      }
-    }
+  // Determine target: matched profile, or fall back to Default → first profile
+  const target = matchedProfile
+    ?? profiles.find(p => p.name.toLowerCase() === 'default')
+    ?? profiles[0];
+
+  if (!target) return;
+
+  // Skip if already on the same profile
+  if (target.id === lastWatcherProfileId) {
+    console.log(`[WindowWatcher] Already on profile '${target.name}', skipping`);
+    return;
+  }
+
+  console.log(`[WindowWatcher] Switching to profile '${target.name}' for window '${windowClass}'`);
+  const success = await applyProfileToSolaar(target);
+  if (success) {
+    lastWatcherProfileId = target.id;
+    // Update server state without emitting (bootstrap trigger skips SSE emission);
+    // we emit manually below to include profileName in the payload.
+    setActiveProfile(target.id, 'bootstrap');
+    setPreference('lastActiveProfileId', target.id);
+    emitStoreEvent({
+      type: 'profile-switched',
+      payload: { profileId: target.id, profileName: target.name, trigger: 'watcher' },
+    });
   }
 });
 

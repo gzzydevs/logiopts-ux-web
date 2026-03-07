@@ -103,6 +103,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isLayoutEditMode, setLayoutEditMode] = useState(false);
     const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
     const toastIdRef = useRef(0);
+    const profilesRef = useRef<Profile[]>([]);
+    profilesRef.current = profiles;
 
     // ─── Toast management ──────────────────────────────────────────────────────
 
@@ -419,10 +421,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         es.addEventListener('profile-switched', (e) => {
             try {
-                const { profileId, trigger } = JSON.parse(e.data);
+                const { profileId, profileName, trigger } = JSON.parse(e.data);
                 setAppliedProfileId(profileId);
                 if (trigger === 'watcher') {
-                    addToast({ type: 'info', message: 'Profile auto-switched by window watcher' });
+                    // Switch the UI to the watcher-selected profile
+                    setActiveProfileId(profileId);
+                    const profile = profilesRef.current.find(p => p.id === profileId);
+                    if (profile) {
+                        setButtons([...profile.buttons]);
+                    }
+                    setDirty(false);
+                    setSelectedCid(null);
+                    setSaveStatus('idle');
+                    setApplyStatus('idle');
+                    const label = profileName || 'unknown';
+                    addToast({ type: 'info', message: `Auto-switched to profile "${label}"` });
                 }
             } catch { /* ignore parse errors */ }
         });
