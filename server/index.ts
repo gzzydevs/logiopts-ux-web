@@ -6,14 +6,17 @@ import configRouter from './routes/config.js';
 import profilesRouter, { getAllProfiles } from './routes/profiles.js';
 import actionsRouter from './routes/actions.js';
 import scriptsRouter from './routes/scripts.js';
+import preferencesRouter from './routes/preferences.js';
+import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
 import { keyListener } from './services/keyListener.js';
-import { bootstrap, setCurrentDevice } from './state/memory-store.js';
+import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
 import { upsertDevice } from './db/repositories/device.repo.js';
 import { createProfile } from './db/repositories/profile.repo.js';
+import { getPreference, setPreference } from './db/repositories/preferences.repo.js';
 import { solaarYamlToJson } from './solaar/index.js';
 import { profileConfigToButtonConfigs } from './state/bridge.js';
 import type { KnownDevice, KnownButton, ButtonConfig } from './types.js';
@@ -33,12 +36,25 @@ app.use('/api', configRouter);
 app.use('/api', profilesRouter);
 app.use('/api', actionsRouter);
 app.use('/api', scriptsRouter);
+app.use('/api', preferencesRouter);
+app.use('/api', eventsRouter);
 
 // Bootstrap endpoint — returns everything the UI needs on first load
 // Auto-detects device and creates Default profile from current Solaar config if needed.
 app.get('/api/bootstrap', async (_req, res) => {
   try {
     let data = bootstrap();
+
+    // Restore active profile from preferences if not set
+    if (!getActiveProfileId()) {
+      const lastActiveId = getPreference('lastActiveProfileId');
+      if (lastActiveId) {
+        const validProfile = data.profiles.find(p => p.id === lastActiveId);
+        if (validProfile) {
+          setActiveProfile(lastActiveId, 'bootstrap');
+        }
+      }
+    }
 
     // 1. If no devices in DB, auto-detect via Solaar
     if (data.devices.length === 0) {
@@ -188,8 +204,6 @@ app.get('/api/bootstrap', async (_req, res) => {
 });
 
 // Window Watcher API — MUST be before catch-all
-let currentAppliedProfileId: string | null = null;
-
 app.get('/api/watcher/status', (_req, res) => {
   const isRunning = (windowWatcher as any).interval !== null;
   res.json({ active: isRunning });
@@ -204,8 +218,33 @@ app.post('/api/watcher/toggle', (req, res) => {
     windowWatcher.stop();
     console.log('[WindowWatcher] Stopped manually via API');
   }
+  // Persist watcher preference
+  setPreference('windowWatcherEnabled', active ? 'true' : 'false');
+  emitStoreEvent({ type: 'watcher-status', payload: { active } });
   res.json({ success: true, active });
 });
+
+// Active Profile API
+app.get('/api/active-profile', (_req, res) => {
+  res.json({ ok: true, data: { profileId: getActiveProfileId() } });
+});
+
+app.post('/api/active-profile', async (req, res) => {
+  const { profileId } = req.body as { profileId: string };
+  if (!profileId) {
+    return res.status(400).json({ ok: false, error: 'Missing profileId' });
+  }
+  setActiveProfile(profileId, 'user');
+  setPreference('lastActiveProfileId', profileId);
+  res.json({ ok: true, data: { profileId } });
+});
+
+// Restore window watcher from preferences on startup
+const watcherPref = getPreference('windowWatcherEnabled');
+if (watcherPref === 'true') {
+  windowWatcher.start();
+  console.log('[WindowWatcher] Auto-started from preferences');
+}
 
 // Serve static React build in production
 const distPath = resolve(__dirname, '../dist');
@@ -222,21 +261,29 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
   const matchedProfile = profiles.find(p => p.windowClasses?.includes(windowClass));
 
   if (matchedProfile) {
-    if (currentAppliedProfileId !== matchedProfile.id) {
-      console.log(`[WindowWatcher] Applying profile '${matchedProfile.name}' for '${windowClass}'`);
-      const success = await applyProfileToSolaar(matchedProfile);
-      if (success) {
-        currentAppliedProfileId = matchedProfile.id;
-      }
+    console.log(`[WindowWatcher] Applying profile '${matchedProfile.name}' for '${windowClass}'`);
+    const success = await applyProfileToSolaar(matchedProfile);
+    if (success) {
+      // Emit event but don't change activeProfileId — window-matched profiles are temporary
+      emitStoreEvent({
+        type: 'profile-switched',
+        payload: { profileId: matchedProfile.id, profileName: matchedProfile.name, trigger: 'watcher' },
+      });
     }
   } else {
-    // Fallback to 'Default' profile if exists
-    const defaultProfile = profiles.find(p => p.name.toLowerCase() === 'default');
-    if (defaultProfile && currentAppliedProfileId !== defaultProfile.id) {
-      console.log(`[WindowWatcher] Reverting to 'Default' profile`);
-      const success = await applyProfileToSolaar(defaultProfile);
+    // Fallback: active profile → default → first available
+    const activeId = getActiveProfileId();
+    const fallback = profiles.find(p => p.id === activeId)
+        ?? profiles.find(p => p.name.toLowerCase() === 'default')
+        ?? profiles[0];
+    if (fallback) {
+      console.log(`[WindowWatcher] Reverting to profile '${fallback.name}'`);
+      const success = await applyProfileToSolaar(fallback);
       if (success) {
-        currentAppliedProfileId = defaultProfile.id;
+        emitStoreEvent({
+          type: 'profile-switched',
+          payload: { profileId: fallback.id, profileName: fallback.name, trigger: 'watcher' },
+        });
       }
     }
   }

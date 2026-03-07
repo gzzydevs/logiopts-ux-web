@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS scripts (
     updatedAt   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS preferences (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 -- Indices
 CREATE INDEX IF NOT EXISTS idx_profiles_deviceId ON profiles(deviceId);
 CREATE INDEX IF NOT EXISTS idx_profiles_appName ON profiles(appName);

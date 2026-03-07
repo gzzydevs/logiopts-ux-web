@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import type {
     KnownDevice,
     Profile,
@@ -32,6 +32,7 @@ interface AppContextType {
     device: KnownDevice | null;
     profiles: Profile[];
     activeProfileId: string | null;
+    appliedProfileId: string | null;
     buttons: ButtonConfig[];
     scripts: Script[];
     systemActions: SystemAction[];
@@ -94,6 +95,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [selectedCid, setSelectedCid] = useState<number | null>(null);
     const [dirty, setDirty] = useState(false);
     const [isLayoutEditMode, setLayoutEditMode] = useState(false);
+    const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
     const toastIdRef = useRef(0);
 
     // ─── Toast management ──────────────────────────────────────────────────────
@@ -155,11 +157,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 // Non-critical, continue without system actions
             }
 
-            // Select first profile or clear
+            // Select profile: restore last active, or use applied, or default, or first
             if (data.profiles.length > 0) {
-                const firstProfile = data.profiles[0];
-                setActiveProfileId(firstProfile.id);
-                setButtons([...firstProfile.buttons]);
+                const lastSelectedId = data.preferences?.lastActiveProfileId;
+                const initialProfile =
+                    (lastSelectedId ? data.profiles.find(p => p.id === lastSelectedId) : null)
+                    ?? (data.activeProfileId ? data.profiles.find(p => p.id === data.activeProfileId) : null)
+                    ?? data.profiles[0];
+                setActiveProfileId(initialProfile.id);
+                setButtons([...initialProfile.buttons]);
+                setAppliedProfileId(data.activeProfileId || initialProfile.id);
+            }
+
+            // Restore window watcher state from preferences
+            if (data.preferences?.windowWatcherEnabled === 'true') {
+                setWindowWatcherActive(true);
             }
 
             setAppStatus(dev ? 'connected' : 'no-device');
@@ -287,7 +299,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setApplyStatus('applied');
             setDirty(false);
             setSaveStatus('saved');
+            setAppliedProfileId(activeProfileId);
             addToast({ type: 'success', message: 'Configuration applied to Solaar!' });
+
+            // Notify server of active profile change
+            fetch('/api/active-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileId: activeProfileId }),
+            }).catch(() => { /* non-critical */ });
 
             // Update the profile's buttons in local state
             setProfiles(prev => prev.map(p =>
@@ -305,6 +325,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [activeProfileId, device, buttons, profiles, addToast]);
 
+    // ─── SSE subscription ──────────────────────────────────────────────────────
+
+    useEffect(() => {
+        const es = new EventSource('/api/events');
+
+        es.addEventListener('profile-switched', (e) => {
+            try {
+                const { profileId, trigger } = JSON.parse(e.data);
+                setAppliedProfileId(profileId);
+                if (trigger === 'watcher') {
+                    addToast({ type: 'info', message: 'Profile auto-switched by window watcher' });
+                }
+            } catch { /* ignore parse errors */ }
+        });
+
+        es.addEventListener('watcher-status', (e) => {
+            try {
+                const { active } = JSON.parse(e.data);
+                setWindowWatcherActive(active);
+            } catch { /* ignore parse errors */ }
+        });
+
+        es.addEventListener('config-applied', () => {
+            // Could refresh data if needed
+        });
+
+        return () => es.close();
+    }, [addToast]);
+
     // ─── Context value ─────────────────────────────────────────────────────────
 
     return (
@@ -313,6 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             device,
             profiles,
             activeProfileId,
+            appliedProfileId,
             buttons,
             scripts,
             systemActions,

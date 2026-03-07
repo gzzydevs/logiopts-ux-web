@@ -5,6 +5,7 @@
  * redundant parser calls, and enables rollback if Solaar apply fails.
  */
 
+import EventEmitter from 'node:events';
 import type { KnownDevice, Profile, ButtonConfig } from '../types';
 import type { ProfileConfig } from '../solaar/schema';
 import { jsonToSolaarYaml } from '../solaar/index';
@@ -13,6 +14,7 @@ import { getAllDevices } from '../db/repositories/device.repo';
 import { getAllProfiles as dbGetAllProfiles } from '../db/repositories/profile.repo';
 import { getAllConfigs, saveConfig as dbSaveConfig } from '../db/repositories/config.repo';
 import { getAllScripts } from '../db/repositories/script.repo';
+import { getAllPreferences } from '../db/repositories/preferences.repo';
 import type { Config } from '../db/repositories/config.repo';
 import type { Script } from '../db/repositories/script.repo';
 
@@ -30,11 +32,18 @@ interface AppliedSnapshot {
     yaml: string;
 }
 
+export interface StoreEvent {
+    type: 'profile-switched' | 'config-applied' | 'watcher-status';
+    payload: unknown;
+}
+
 export interface BootstrapData {
     devices: KnownDevice[];
     profiles: Profile[];
     configs: { profileId: string; yamlConfig: string; appliedAt: string | null }[];
     scripts: Script[];
+    preferences: Record<string, string>;
+    activeProfileId: string | null;
 }
 
 interface MemoryState {
@@ -43,6 +52,10 @@ interface MemoryState {
     configCache: Map<string, ConfigCacheEntry>;
     lastApplied: AppliedSnapshot | null;
 }
+
+// ─── Event emitter for SSE ───────────────────────────────────────────────────
+
+export const storeEvents = new EventEmitter();
 
 // ─── Singleton state ─────────────────────────────────────────────────────────
 
@@ -71,8 +84,14 @@ export function getCurrentDevice(): KnownDevice | null {
 }
 
 /** Set the active profile ID */
-export function setActiveProfile(profileId: string): void {
+export function setActiveProfile(profileId: string, trigger: 'user' | 'watcher' | 'bootstrap' = 'user'): void {
     state.activeProfileId = profileId;
+    if (trigger !== 'bootstrap') {
+        storeEvents.emit('change', {
+            type: 'profile-switched',
+            payload: { profileId, trigger },
+        } as StoreEvent);
+    }
 }
 
 /** Get active profile ID */
@@ -167,6 +186,11 @@ export function invalidateProfile(profileId: string): void {
     state.configCache.delete(profileId);
 }
 
+/** Emit a store event (for SSE broadcasting) */
+export function emitStoreEvent(event: StoreEvent): void {
+    storeEvents.emit('change', event);
+}
+
 /**
  * Bootstrap: load everything from DB for initial UI render.
  */
@@ -179,6 +203,7 @@ export function bootstrap(): BootstrapData {
         appliedAt: c.appliedAt,
     }));
     const scripts = getAllScripts();
+    const preferences = getAllPreferences();
 
     // Warm up the config cache
     for (const config of getAllConfigs()) {
@@ -191,7 +216,7 @@ export function bootstrap(): BootstrapData {
         }
     }
 
-    return { devices, profiles, configs, scripts };
+    return { devices, profiles, configs, scripts, preferences, activeProfileId: state.activeProfileId };
 }
 
 /**

@@ -6,7 +6,7 @@ import './Topbar.css';
 export const Topbar: React.FC = () => {
     const {
         device, detectDevice,
-        profiles, activeProfileId, selectProfile,
+        profiles, activeProfileId, appliedProfileId, selectProfile,
         saveStatus, applyStatus, dirty,
         saveConfig, applyCurrentConfig,
         isLayoutEditMode, setLayoutEditMode,
@@ -76,7 +76,7 @@ export const Topbar: React.FC = () => {
                         >
                             {profiles.map(p => (
                                 <option key={p.id} value={p.id} style={{ background: '#1a1b26' }}>
-                                    {p.name}
+                                    {p.name}{p.id === appliedProfileId ? ' ● Active' : ''}
                                 </option>
                             ))}
                         </select>
