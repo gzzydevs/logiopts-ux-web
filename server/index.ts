@@ -280,10 +280,13 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
   const key = `${windowClassLower}::${target.id}`;
   if (key === lastWatcherKey) return;
 
+  // Commit to this (window, profile) pair before applying — this prevents
+  // infinite retries if applyProfileToSolaar is slow or fails.
+  lastWatcherKey = key;
+
   console.log(`[WindowWatcher] Switching to profile '${target.name}' for window '${windowClass}'`);
   const success = await applyProfileToSolaar(target);
   if (success) {
-    lastWatcherKey = key;
     // Update server state without emitting (bootstrap trigger skips SSE emission);
     // we emit manually below to include profileName in the payload.
     setActiveProfile(target.id, 'bootstrap');
