@@ -254,16 +254,19 @@ app.get('/{*path}', (_req, res) => {
 });
 
 // Window Watcher event handler
-// Track last profile applied by the watcher so we skip redundant switches
-let lastWatcherProfileId: string | null = null;
+// Composite key "windowClass::profileId" — dedup on the (window, target-profile) pair so
+// that switching to a different profile for the same window (e.g. a newly-created profile)
+// is always picked up, while redundant applies for the current pair are skipped.
+let lastWatcherKey: string | null = null;
 
 windowWatcher.on('window-changed', async (windowClass: string) => {
-  console.log(`[WindowWatcher] Active window changed to: ${windowClass}`);
   const profiles = await getAllProfiles();
 
-  // Find a profile whose windowClasses contain the active window class
+  // Case-insensitive match so "Firefox" == "firefox" regardless of how the user typed it
+  const windowClassLower = windowClass.toLowerCase();
   const matchedProfile = profiles.find(p =>
-    p.windowClasses && p.windowClasses.length > 0 && p.windowClasses.includes(windowClass)
+    p.windowClasses && p.windowClasses.length > 0 &&
+    p.windowClasses.some(wc => wc.toLowerCase() === windowClassLower)
   );
 
   // Determine target: matched profile, or fall back to Default → first profile
@@ -273,16 +276,14 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
 
   if (!target) return;
 
-  // Skip if already on the same profile
-  if (target.id === lastWatcherProfileId) {
-    console.log(`[WindowWatcher] Already on profile '${target.name}', skipping`);
-    return;
-  }
+  // Skip only when BOTH the active window AND the target profile are unchanged
+  const key = `${windowClassLower}::${target.id}`;
+  if (key === lastWatcherKey) return;
 
   console.log(`[WindowWatcher] Switching to profile '${target.name}' for window '${windowClass}'`);
   const success = await applyProfileToSolaar(target);
   if (success) {
-    lastWatcherProfileId = target.id;
+    lastWatcherKey = key;
     // Update server state without emitting (bootstrap trigger skips SSE emission);
     // we emit manually below to include profileName in the payload.
     setActiveProfile(target.id, 'bootstrap');

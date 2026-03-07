@@ -26,12 +26,15 @@ export class WindowWatcher extends EventEmitter {
     private async poll() {
         try {
             const windowClass = await this.getActiveWindow();
-            if (windowClass && windowClass !== this.currentClass) {
+            if (windowClass) {
                 this.currentClass = windowClass;
+                // Always emit so the server can re-evaluate profile matching on every
+                // poll — this picks up newly-created profiles even when the active
+                // window hasn't changed since the last poll.
                 this.emit('window-changed', windowClass);
             }
         } catch (e) {
-            // Ignore errors 
+            // Ignore errors
         }
     }
 
