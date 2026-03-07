@@ -243,3 +243,161 @@
   0%, 100% { border-color: rgba(130, 170, 255, 0.3); }
   50% { border-color: rgba(130, 170, 255, 0.6); }
 }
+
+/* ─── Profile Management Buttons ───────────────────────────────────────────── */
+
+.profile-settings-btn,
+.profile-delete-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.profile-settings-btn:hover {
+  border-color: #82aaff;
+  color: #82aaff;
+  background: rgba(130, 170, 255, 0.1);
+}
+
+.profile-delete-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ─── Profile Modal ────────────────────────────────────────────────────────── */
+
+.topbar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.topbar-modal {
+  background: #1a1b26;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.topbar-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.topbar-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.topbar-modal-close {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  transition: color 0.2s;
+}
+
+.topbar-modal-close:hover {
+  color: #fff;
+}
+
+.topbar-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topbar-modal-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.topbar-modal-body label span {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.topbar-modal-body label small {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.topbar-modal-body input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.topbar-modal-body input:focus {
+  border-color: rgba(130, 170, 255, 0.5);
+}
+
+.topbar-modal-body input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.topbar-modal-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.topbar-modal-hint code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.topbar-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ─── Window Class Tags ────────────────────────────────────────────────────── */
+
+.profile-wc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wc-tag {
+  background: rgba(130, 170, 255, 0.12);
+  border: 1px solid rgba(130, 170, 255, 0.25);
+  color: #82aaff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}

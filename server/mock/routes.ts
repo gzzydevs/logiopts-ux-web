@@ -11,10 +11,13 @@
  *   - server/routes/profiles.ts
  *   - server/routes/scripts.ts
  *   - server/routes/actions.ts
- *   - The inline /api/bootstrap and /api/watcher/* handlers in server/index.ts
+ *   - server/routes/preferences.ts
+ *   - server/routes/events.ts
+ *   - The inline /api/bootstrap, /api/watcher/*, /api/active-profile handlers in server/index.ts
  */
 
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import type { Profile, KnownDevice, ButtonConfig } from '../types.js';
 import type { Script } from '../db/repositories/script.repo.js';
 import {
@@ -32,6 +35,18 @@ const mockDevice: KnownDevice = JSON.parse(JSON.stringify(MOCK_DEVICE));
 const mockProfiles: Profile[] = JSON.parse(JSON.stringify(MOCK_PROFILES));
 const mockScripts: Script[] = JSON.parse(JSON.stringify(MOCK_SCRIPTS));
 let mockWatcherActive = false;
+let mockActiveProfileId: string = MOCK_PROFILES[0].id;
+const mockPreferences: Record<string, string> = {};
+
+// SSE subscribers for /api/events
+const sseClients = new Set<Response>();
+
+function emitMockEvent(type: string, payload: Record<string, unknown>): void {
+    const data = `event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`;
+    for (const res of sseClients) {
+        try { res.write(data); } catch { /* client disconnected */ }
+    }
+}
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
@@ -47,6 +62,8 @@ router.get('/bootstrap', (_req, res) => {
                 appliedAt: null,
             })),
             scripts: mockScripts,
+            preferences: mockPreferences,
+            activeProfileId: mockActiveProfileId,
         },
     });
 });
@@ -246,8 +263,61 @@ router.get('/watcher/status', (_req, res) => {
 router.post('/watcher/toggle', (req, res) => {
     const { active } = req.body as { active: boolean };
     mockWatcherActive = !!active;
+    mockPreferences.windowWatcherEnabled = mockWatcherActive ? 'true' : 'false';
     console.log(`[Mock] Window watcher ${mockWatcherActive ? 'started' : 'stopped'} (simulated)`);
+    emitMockEvent('watcher-status', { active: mockWatcherActive });
     res.json({ success: true, active: mockWatcherActive });
+});
+
+// ─── Active Profile ──────────────────────────────────────────────────────────
+
+router.get('/active-profile', (_req, res) => {
+    res.json({ ok: true, data: { profileId: mockActiveProfileId } });
+});
+
+router.post('/active-profile', (req, res) => {
+    const { profileId } = req.body as { profileId: string };
+    if (!profileId) {
+        return res.status(400).json({ ok: false, error: 'Missing profileId' });
+    }
+    mockActiveProfileId = profileId;
+    mockPreferences.lastActiveProfileId = profileId;
+    res.json({ ok: true, data: { profileId } });
+});
+
+// ─── Preferences ─────────────────────────────────────────────────────────────
+
+router.get('/preferences', (_req, res) => {
+    res.json({ ok: true, data: mockPreferences });
+});
+
+router.get('/preferences/:key', (req, res) => {
+    const value = mockPreferences[req.params.key];
+    if (value === undefined) {
+        return res.status(404).json({ ok: false, error: 'Preference not found' });
+    }
+    res.json({ ok: true, data: { value } });
+});
+
+router.put('/preferences/:key', (req, res) => {
+    const { value } = req.body as { value: string };
+    mockPreferences[req.params.key] = String(value);
+    res.json({ ok: true, data: { value: mockPreferences[req.params.key] } });
+});
+
+// ─── SSE Events ──────────────────────────────────────────────────────────────
+
+router.get('/events', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    sseClients.add(res);
+
+    req.on('close', () => {
+        sseClients.delete(res);
+    });
 });
 
 export default router;

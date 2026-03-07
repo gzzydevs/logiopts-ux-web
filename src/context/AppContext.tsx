@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useRef, useEffect } from 'react';
 import type {
     KnownDevice,
     Profile,
@@ -16,6 +16,9 @@ import {
     fetchSystemActions,
     saveConfigToDB,
     applyConfig as apiApplyConfig,
+    saveProfile as apiSaveProfile,
+    deleteProfile as apiDeleteProfile,
+    updateProfile as apiUpdateProfile,
 } from '../hooks/useApi';
 
 // ─── App Status ──────────────────────────────────────────────────────────────
@@ -32,6 +35,7 @@ interface AppContextType {
     device: KnownDevice | null;
     profiles: Profile[];
     activeProfileId: string | null;
+    appliedProfileId: string | null;
     buttons: ButtonConfig[];
     scripts: Script[];
     systemActions: SystemAction[];
@@ -55,6 +59,9 @@ interface AppContextType {
     removeToast: (id: string) => void;
     setWindowWatcherActive: (active: boolean) => void;
     setLayoutEditMode: (active: boolean) => void;
+    createNewProfile: (name: string, windowClasses?: string[], cloneFromProfileId?: string) => Promise<void>;
+    deleteCurrentProfile: () => Promise<void>;
+    updateProfileMeta: (id: string, changes: Partial<Profile>) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -94,7 +101,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [selectedCid, setSelectedCid] = useState<number | null>(null);
     const [dirty, setDirty] = useState(false);
     const [isLayoutEditMode, setLayoutEditMode] = useState(false);
+    const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
     const toastIdRef = useRef(0);
+    const profilesRef = useRef<Profile[]>([]);
+    profilesRef.current = profiles;
 
     // ─── Toast management ──────────────────────────────────────────────────────
 
@@ -155,11 +165,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 // Non-critical, continue without system actions
             }
 
-            // Select first profile or clear
+            // Select profile: restore last active, or use applied, or default, or first
             if (data.profiles.length > 0) {
-                const firstProfile = data.profiles[0];
-                setActiveProfileId(firstProfile.id);
-                setButtons([...firstProfile.buttons]);
+                const lastSelectedId = data.preferences?.lastActiveProfileId;
+                const initialProfile =
+                    (lastSelectedId ? data.profiles.find(p => p.id === lastSelectedId) : null)
+                    ?? (data.activeProfileId ? data.profiles.find(p => p.id === data.activeProfileId) : null)
+                    ?? data.profiles[0];
+                setActiveProfileId(initialProfile.id);
+                setButtons([...initialProfile.buttons]);
+                setAppliedProfileId(data.activeProfileId || initialProfile.id);
+            }
+
+            // Restore window watcher state from preferences
+            if (data.preferences?.windowWatcherEnabled === 'true') {
+                setWindowWatcherActive(true);
             }
 
             setAppStatus(dev ? 'connected' : 'no-device');
@@ -287,7 +307,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setApplyStatus('applied');
             setDirty(false);
             setSaveStatus('saved');
+            setAppliedProfileId(activeProfileId);
             addToast({ type: 'success', message: 'Configuration applied to Solaar!' });
+
+            // Notify server of active profile change
+            fetch('/api/active-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profileId: activeProfileId }),
+            }).catch(() => { /* non-critical */ });
 
             // Update the profile's buttons in local state
             setProfiles(prev => prev.map(p =>
@@ -305,6 +333,135 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [activeProfileId, device, buttons, profiles, addToast]);
 
+    // ─── Profile management ────────────────────────────────────────────────────
+
+    const createNewProfile = useCallback(async (name: string, windowClasses?: string[], cloneFromProfileId?: string) => {
+        if (!device) {
+            addToast({ type: 'warning', message: 'No device connected' });
+            return;
+        }
+
+        try {
+            // If cloning, copy buttons from the source profile; otherwise use blank defaults
+            let baseButtons: ButtonConfig[];
+            if (cloneFromProfileId) {
+                const source = profiles.find(p => p.id === cloneFromProfileId);
+                baseButtons = source
+                    ? JSON.parse(JSON.stringify(source.buttons))
+                    : device.buttons.filter(b => b.divertable).map(b => makeDefaultButtonConfig(b.cid));
+            } else {
+                baseButtons = device.buttons
+                    .filter(b => b.divertable)
+                    .map(b => makeDefaultButtonConfig(b.cid));
+            }
+
+            const profile: Profile = {
+                id: '',
+                name,
+                deviceName: device.unitId,
+                buttons: baseButtons,
+                windowClasses: windowClasses?.length ? windowClasses : undefined,
+                createdAt: '',
+                updatedAt: '',
+            };
+            const created = await apiSaveProfile(profile);
+            setProfiles(prev => [...prev, created]);
+            setActiveProfileId(created.id);
+            setButtons([...created.buttons]);
+            setDirty(false);
+            setSelectedCid(null);
+            setSaveStatus('idle');
+            setApplyStatus('idle');
+            addToast({ type: 'success', message: `Profile "${name}" created` });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Create failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [device, profiles, addToast]);
+
+    const deleteCurrentProfile = useCallback(async () => {
+        if (!activeProfileId) return;
+
+        const profile = profiles.find(p => p.id === activeProfileId);
+        if (!profile) return;
+
+        try {
+            await apiDeleteProfile(activeProfileId);
+            const remaining = profiles.filter(p => p.id !== activeProfileId);
+            setProfiles(remaining);
+            if (remaining.length > 0) {
+                setActiveProfileId(remaining[0].id);
+                setButtons([...remaining[0].buttons]);
+            } else {
+                setActiveProfileId(null);
+                setButtons([]);
+            }
+            setDirty(false);
+            setSelectedCid(null);
+            addToast({ type: 'success', message: `Profile "${profile.name}" deleted` });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [activeProfileId, profiles, addToast]);
+
+    const updateProfileMeta = useCallback(async (id: string, changes: Partial<Profile>) => {
+        try {
+            const updated = await apiUpdateProfile(id, changes);
+            setProfiles(prev => prev.map(p => p.id === id ? updated : p));
+            addToast({ type: 'success', message: 'Profile updated' });
+        } catch (err) {
+            addToast({
+                type: 'error',
+                message: `Update failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            });
+        }
+    }, [addToast]);
+
+    // ─── SSE subscription ──────────────────────────────────────────────────────
+
+    useEffect(() => {
+        const es = new EventSource('/api/events');
+
+        es.addEventListener('profile-switched', (e) => {
+            try {
+                const { profileId, profileName, trigger } = JSON.parse(e.data);
+                setAppliedProfileId(profileId);
+                if (trigger === 'watcher') {
+                    // Switch the UI to the watcher-selected profile
+                    setActiveProfileId(profileId);
+                    const profile = profilesRef.current.find(p => p.id === profileId);
+                    if (profile) {
+                        setButtons([...profile.buttons]);
+                    }
+                    setDirty(false);
+                    setSelectedCid(null);
+                    setSaveStatus('idle');
+                    setApplyStatus('idle');
+                    const label = profileName || 'unknown';
+                    addToast({ type: 'info', message: `Auto-switched to profile "${label}"` });
+                }
+            } catch { /* ignore parse errors */ }
+        });
+
+        es.addEventListener('watcher-status', (e) => {
+            try {
+                const { active } = JSON.parse(e.data);
+                setWindowWatcherActive(active);
+            } catch { /* ignore parse errors */ }
+        });
+
+        es.addEventListener('config-applied', () => {
+            // Could refresh data if needed
+        });
+
+        return () => es.close();
+    }, [addToast]);
+
     // ─── Context value ─────────────────────────────────────────────────────────
 
     return (
@@ -313,6 +470,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             device,
             profiles,
             activeProfileId,
+            appliedProfileId,
             buttons,
             scripts,
             systemActions,
@@ -335,6 +493,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             removeToast,
             setWindowWatcherActive,
             setLayoutEditMode,
+            createNewProfile,
+            deleteCurrentProfile,
+            updateProfileMeta,
         }}>
             {children}
         </AppContext.Provider>
