@@ -22,7 +22,11 @@ import type { Profile, KnownDevice, ButtonConfig } from '../types.js';
 import type { Script } from '../db/repositories/script.repo.js';
 import {
     MOCK_DEVICE,
+    MOCK_DEVICE_ID,
+    MOCK_DEVICE_2,
+    MOCK_DEVICE_2_ID,
     MOCK_PROFILES,
+    MOCK_PROFILES_D2,
     MOCK_SCRIPTS,
     MOCK_SYSTEM_ACTIONS,
 } from './data.js';
@@ -32,10 +36,14 @@ const router = Router();
 // ─── In-memory state (deep-cloned from seed data, resets on restart) ─────────
 
 const mockDevice: KnownDevice = JSON.parse(JSON.stringify(MOCK_DEVICE));
-const mockProfiles: Profile[] = JSON.parse(JSON.stringify(MOCK_PROFILES));
+const mockDevice2: KnownDevice = JSON.parse(JSON.stringify(MOCK_DEVICE_2));
+let mockProfiles: Profile[] = JSON.parse(JSON.stringify([...MOCK_PROFILES, ...MOCK_PROFILES_D2]));
 const mockScripts: Script[] = JSON.parse(JSON.stringify(MOCK_SCRIPTS));
 let mockWatcherActive = false;
 let mockActiveProfileId: string = MOCK_PROFILES[0].id;
+// Only device 1 is "connected" (detected by Solaar); device 2 is stored but disconnected
+const mockConnectedDeviceIds: string[] = [MOCK_DEVICE_ID];
+let mockActiveDeviceId: string = MOCK_DEVICE_ID;
 const mockPreferences: Record<string, string> = {};
 
 // SSE subscribers for /api/events
@@ -51,10 +59,14 @@ function emitMockEvent(type: string, payload: Record<string, unknown>): void {
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 
 router.get('/bootstrap', (_req, res) => {
+    const devices = [
+        { ...mockDevice, connected: mockConnectedDeviceIds.includes(mockDevice.unitId) },
+        { ...mockDevice2, connected: mockConnectedDeviceIds.includes(mockDevice2.unitId) },
+    ];
     res.json({
         ok: true,
         data: {
-            devices: [mockDevice],
+            devices,
             profiles: mockProfiles,
             configs: mockProfiles.map(p => ({
                 profileId: p.id,
@@ -62,8 +74,9 @@ router.get('/bootstrap', (_req, res) => {
                 appliedAt: null,
             })),
             scripts: mockScripts,
-            preferences: mockPreferences,
+            preferences: { ...mockPreferences, lastActiveDeviceId: mockActiveDeviceId },
             activeProfileId: mockActiveProfileId,
+            connectedDeviceIds: mockConnectedDeviceIds,
         },
     });
 });
@@ -283,6 +296,22 @@ router.post('/active-profile', (req, res) => {
     mockActiveProfileId = profileId;
     mockPreferences.lastActiveProfileId = profileId;
     res.json({ ok: true, data: { profileId } });
+});
+
+// ─── Active Device ───────────────────────────────────────────────────────────
+
+router.get('/active-device', (_req, res) => {
+    res.json({ ok: true, data: { deviceId: mockActiveDeviceId } });
+});
+
+router.post('/active-device', (req, res) => {
+    const { deviceId } = req.body as { deviceId: string };
+    if (!deviceId) {
+        return res.status(400).json({ ok: false, error: 'Missing deviceId' });
+    }
+    mockActiveDeviceId = deviceId;
+    mockPreferences.lastActiveDeviceId = deviceId;
+    res.json({ ok: true, data: { deviceId } });
 });
 
 // ─── Preferences ─────────────────────────────────────────────────────────────

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '../context/AppContext';
-import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, Save, Zap, Loader2, Check, AlertCircle, Search, Battery, PenLine, Plus, Trash2, X, ChevronsUpDown, WifiOff } from 'lucide-react';
 import './Topbar.css';
 
 export const Topbar: React.FC = () => {
     const {
         device, detectDevice,
+        devices, selectDevice,
         profiles, activeProfileId, appliedProfileId, selectProfile,
         saveStatus, applyStatus, dirty,
         saveConfig, applyCurrentConfig,
@@ -18,6 +19,9 @@ export const Topbar: React.FC = () => {
     const [newName, setNewName] = useState('');
     const [newWindowClasses, setNewWindowClasses] = useState('');
     const [cloneFromId, setCloneFromId] = useState('');
+    const [showDevicePicker, setShowDevicePicker] = useState(false);
+    const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
+    const deviceSwitchBtnRef = useRef<HTMLButtonElement>(null);
 
     const activeProfile = profiles.find(p => p.id === activeProfileId);
 
@@ -29,6 +33,14 @@ export const Topbar: React.FC = () => {
         setNewWindowClasses('');
         setCloneFromId('');
         setShowNewProfile(false);
+    };
+
+    const handleOpenDevicePicker = () => {
+        if (deviceSwitchBtnRef.current) {
+            const rect = deviceSwitchBtnRef.current.getBoundingClientRect();
+            setPickerPos({ top: rect.bottom + 8, left: rect.left });
+        }
+        setShowDevicePicker(true);
     };
 
     return (
@@ -52,11 +64,27 @@ export const Topbar: React.FC = () => {
                 {device ? (
                     <>
                         <span className="device-name">{device.displayName}</span>
-                        {device.battery >= 0 && (
+                        {device.connected === false && (
+                            <span className="device-disconnected-badge" title="Device not currently detected by Solaar">
+                                <WifiOff size={12} />
+                                not detected
+                            </span>
+                        )}
+                        {device.battery >= 0 && device.connected !== false && (
                             <span className="device-battery" title={`Battery: ${device.battery}%`}>
                                 <Battery size={14} />
                                 {device.battery}%
                             </span>
+                        )}
+                        {devices.length > 1 && (
+                            <button
+                                ref={deviceSwitchBtnRef}
+                                className="device-switch-btn"
+                                onClick={handleOpenDevicePicker}
+                                title="Switch device"
+                            >
+                                <ChevronsUpDown size={14} />
+                            </button>
                         )}
                     </>
                 ) : (
@@ -256,6 +284,42 @@ export const Topbar: React.FC = () => {
                         </div>
                     </div>
                 </div>,
+                document.body
+            )}
+
+            {/* Device Picker Dropdown — portal-rendered to avoid stacking context clipping */}
+            {showDevicePicker && createPortal(
+                <>
+                    {/* Transparent backdrop to catch outside clicks */}
+                    <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 150 }}
+                        onClick={() => setShowDevicePicker(false)}
+                    />
+                    <div
+                        className="device-picker-dropdown"
+                        style={{ position: 'fixed', top: `${pickerPos.top}px`, left: `${pickerPos.left}px`, zIndex: 151 }}
+                    >
+                        {devices.map(d => (
+                            <button
+                                key={d.unitId}
+                                className={`device-picker-item${d.unitId === device?.unitId ? ' active' : ''}`}
+                                onClick={() => { selectDevice(d.unitId); setShowDevicePicker(false); }}
+                            >
+                                <span className="device-picker-name">{d.displayName}</span>
+                                {d.connected === false ? (
+                                    <span className="device-status-disconnected">
+                                        <WifiOff size={11} />
+                                        not detected
+                                    </span>
+                                ) : (
+                                    <span className="device-status-connected">
+                                        {d.battery >= 0 && <><Battery size={11} />{d.battery}%</>}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </>,
                 document.body
             )}
         </>

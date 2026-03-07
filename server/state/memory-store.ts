@@ -50,6 +50,8 @@ export interface BootstrapData {
     scripts: Script[];
     preferences: Record<string, string>;
     activeProfileId: string | null;
+    /** Unit IDs of devices currently visible to Solaar (connected & detected) */
+    connectedDeviceIds: string[];
 }
 
 interface MemoryState {
@@ -57,6 +59,10 @@ interface MemoryState {
     activeProfileId: string | null;
     configCache: Map<string, ConfigCacheEntry>;
     lastApplied: AppliedSnapshot | null;
+    /** Unit IDs of devices seen in the latest Solaar scan */
+    connectedDeviceIds: Set<string>;
+    /** The device the user has selected in the UI */
+    activeDeviceId: string | null;
 }
 
 // ─── Event emitter for SSE ───────────────────────────────────────────────────
@@ -70,6 +76,8 @@ const state: MemoryState = {
     activeProfileId: null,
     configCache: new Map(),
     lastApplied: null,
+    connectedDeviceIds: new Set(),
+    activeDeviceId: null,
 };
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -103,6 +111,26 @@ export function setActiveProfile(profileId: string, trigger: 'user' | 'watcher' 
 /** Get active profile ID */
 export function getActiveProfileId(): string | null {
     return state.activeProfileId;
+}
+
+/** Record which device unit IDs were visible in the latest Solaar scan */
+export function setConnectedDevices(ids: string[]): void {
+    state.connectedDeviceIds = new Set(ids);
+}
+
+/** Check if a specific device is currently connected (seen by Solaar) */
+export function isDeviceConnected(unitId: string): boolean {
+    return state.connectedDeviceIds.has(unitId);
+}
+
+/** Set the device the user has selected in the UI */
+export function setActiveDevice(id: string | null): void {
+    state.activeDeviceId = id;
+}
+
+/** Get the UI-selected device ID */
+export function getActiveDeviceId(): string | null {
+    return state.activeDeviceId;
 }
 
 /**
@@ -201,7 +229,12 @@ export function emitStoreEvent(event: StoreEvent): void {
  * Bootstrap: load everything from DB for initial UI render.
  */
 export function bootstrap(): BootstrapData {
-    const devices = getAllDevices();
+    const rawDevices = getAllDevices();
+    // Decorate each device with its current connection status
+    const devices = rawDevices.map(d => ({
+        ...d,
+        connected: state.connectedDeviceIds.has(d.unitId),
+    }));
     const profiles = dbGetAllProfiles();
     const configs = getAllConfigs().map(c => ({
         profileId: c.profileId,
@@ -222,7 +255,15 @@ export function bootstrap(): BootstrapData {
         }
     }
 
-    return { devices, profiles, configs, scripts, preferences, activeProfileId: state.activeProfileId };
+    return {
+        devices,
+        profiles,
+        configs,
+        scripts,
+        preferences,
+        activeProfileId: state.activeProfileId,
+        connectedDeviceIds: [...state.connectedDeviceIds],
+    };
 }
 
 /**
@@ -233,4 +274,6 @@ export function clearState(): void {
     state.activeProfileId = null;
     state.configCache.clear();
     state.lastApplied = null;
+    state.connectedDeviceIds = new Set();
+    state.activeDeviceId = null;
 }

@@ -16,6 +16,8 @@ export interface KnownDevice {
   svgId: string;
   /** Battery percentage (from Solaar), -1 if unknown */
   battery: number;
+  /** True when the device was seen in the latest Solaar scan (runtime-only, not persisted) */
+  connected?: boolean;
 }
 
 export interface KnownButton {
@@ -159,4 +161,6 @@ export interface BootstrapData {
   scripts: Script[];
   preferences: Record<string, string>;
   activeProfileId: string | null;
+  /** Unit IDs of devices currently visible to Solaar (connected & detected) */
+  connectedDeviceIds: string[];
 }

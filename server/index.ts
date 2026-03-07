@@ -12,7 +12,7 @@ import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
 import { keyListener } from './services/keyListener.js';
-import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
+import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent, setConnectedDevices, setActiveDevice, getActiveDeviceId } from './state/memory-store.js';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
 import { upsertDevice } from './db/repositories/device.repo.js';
@@ -72,6 +72,15 @@ app.get('/api/bootstrap', async (_req, res) => {
       }
     }
 
+    // Restore active device from preferences if not set
+    const lastActiveDeviceId = getPreference('lastActiveDeviceId');
+    if (lastActiveDeviceId) {
+      const validDevice = data.devices.find(d => d.unitId === lastActiveDeviceId);
+      if (validDevice) {
+        setActiveDevice(lastActiveDeviceId);
+      }
+    }
+
     // 1. If no devices in DB, auto-detect via Solaar
     if (data.devices.length === 0) {
       try {
@@ -86,6 +95,9 @@ app.get('/api/bootstrap', async (_req, res) => {
           console.log(`[Bootstrap] Parsed ${parsed.length} devices, first has ${parsed[0]?.buttons?.length ?? 0} buttons`);
 
           if (parsed.length > 0) {
+            // Mark all detected devices as connected
+            setConnectedDevices(parsed.map(d => d.unitId));
+
             const dev = parsed[0];
             const known = KNOWN_DEVICES[dev.name];
             // Reuse the same enrichment logic as GET /api/device
@@ -253,6 +265,21 @@ app.post('/api/active-profile', async (req, res) => {
   setActiveProfile(profileId, 'user');
   setPreference('lastActiveProfileId', profileId);
   res.json({ ok: true, data: { profileId } });
+});
+
+// Active Device API
+app.get('/api/active-device', (_req, res) => {
+  res.json({ ok: true, data: { deviceId: getActiveDeviceId() } });
+});
+
+app.post('/api/active-device', (req, res) => {
+  const { deviceId } = req.body as { deviceId: string };
+  if (!deviceId) {
+    return res.status(400).json({ ok: false, error: 'Missing deviceId' });
+  }
+  setActiveDevice(deviceId);
+  setPreference('lastActiveDeviceId', deviceId);
+  res.json({ ok: true, data: { deviceId } });
 });
 
 // Restore window watcher from preferences on startup

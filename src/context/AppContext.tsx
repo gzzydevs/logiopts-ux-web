@@ -33,6 +33,8 @@ interface AppContextType {
     // State
     appStatus: AppStatus;
     device: KnownDevice | null;
+    devices: KnownDevice[];
+    activeDeviceId: string | null;
     profiles: Profile[];
     activeProfileId: string | null;
     appliedProfileId: string | null;
@@ -50,6 +52,7 @@ interface AppContextType {
     // Actions
     bootstrap: () => Promise<void>;
     detectDevice: () => Promise<void>;
+    selectDevice: (id: string) => void;
     selectProfile: (id: string) => void;
     setSelectedCid: (cid: number | null) => void;
     updateButton: (cid: number, changes: Partial<ButtonConfig>) => void;
@@ -89,6 +92,8 @@ function makeDefaultButtonConfig(cid: number): ButtonConfig {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [appStatus, setAppStatus] = useState<AppStatus>('loading');
     const [device, setDevice] = useState<KnownDevice | null>(null);
+    const [devices, setDevices] = useState<KnownDevice[]>([]);
+    const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
     const [buttons, setButtons] = useState<ButtonConfig[]>([]);
@@ -103,8 +108,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [isLayoutEditMode, setLayoutEditMode] = useState(false);
     const [appliedProfileId, setAppliedProfileId] = useState<string | null>(null);
     const toastIdRef = useRef(0);
+    // allProfilesRef holds ALL profiles across all devices for SSE watcher lookups
+    const allProfilesRef = useRef<Profile[]>([]);
+    // profilesRef mirrors the filtered profiles list (current device only)
     const profilesRef = useRef<Profile[]>([]);
     profilesRef.current = profiles;
+    // devicesRef for stale-closure-safe access in selectDevice callback
+    const devicesRef = useRef<KnownDevice[]>([]);
+    devicesRef.current = devices;
 
     // ─── Toast management ──────────────────────────────────────────────────────
 
@@ -147,12 +158,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const data = await fetchBootstrap();
 
-            // Set device (first one, or null)
-            const dev = data.devices.length > 0 ? data.devices[0] : null;
-            setDevice(dev);
+            // Decorate devices with connected status from the response
+            const allDevices = data.devices.map(d => ({
+                ...d,
+                connected: (data.connectedDeviceIds ?? []).includes(d.unitId),
+            }));
+            setDevices(allDevices);
 
-            // Set profiles
-            setProfiles(data.profiles);
+            // Store all profiles across devices for SSE lookups
+            allProfilesRef.current = data.profiles;
+
+            // Determine active device: prefer last saved, else first connected, else first available
+            const lastDeviceId = data.preferences?.lastActiveDeviceId;
+            const activeDevice =
+                (lastDeviceId ? allDevices.find(d => d.unitId === lastDeviceId) : null)
+                ?? allDevices.find(d => d.connected)
+                ?? allDevices[0]
+                ?? null;
+
+            setDevice(activeDevice);
+            setActiveDeviceId(activeDevice?.unitId ?? null);
+
+            // Filter profiles to the active device
+            const deviceProfiles = activeDevice
+                ? data.profiles.filter(p => p.deviceName === activeDevice.unitId)
+                : data.profiles;
+            setProfiles(deviceProfiles);
 
             // Set scripts
             setScripts(data.scripts);
@@ -166,12 +197,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
 
             // Select profile: restore last active, or use applied, or default, or first
-            if (data.profiles.length > 0) {
+            if (deviceProfiles.length > 0) {
                 const lastSelectedId = data.preferences?.lastActiveProfileId;
                 const initialProfile =
-                    (lastSelectedId ? data.profiles.find(p => p.id === lastSelectedId) : null)
-                    ?? (data.activeProfileId ? data.profiles.find(p => p.id === data.activeProfileId) : null)
-                    ?? data.profiles[0];
+                    (lastSelectedId ? deviceProfiles.find(p => p.id === lastSelectedId) : null)
+                    ?? (data.activeProfileId ? deviceProfiles.find(p => p.id === data.activeProfileId) : null)
+                    ?? deviceProfiles[0];
                 setActiveProfileId(initialProfile.id);
                 setButtons([...initialProfile.buttons]);
                 setAppliedProfileId(data.activeProfileId || initialProfile.id);
@@ -182,7 +213,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 setWindowWatcherActive(true);
             }
 
-            setAppStatus(dev ? 'connected' : 'no-device');
+            setAppStatus(activeDevice ? 'connected' : 'no-device');
         } catch (err) {
             console.error('[Bootstrap] Failed:', err);
             setAppStatus('error');
@@ -199,17 +230,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             addToast({ type: 'info', message: 'Detecting device via Solaar...' });
             const resp = await fetchDevice();
-            setDevice(resp.device);
-            setAppStatus('connected');
             addToast({ type: 'success', message: `Detected: ${resp.device.displayName}` });
 
-            // Re-bootstrap to get updated data
+            // Re-bootstrap to get updated data including connected status
             const data = await fetchBootstrap();
-            setProfiles(data.profiles);
+            const allDevices = data.devices.map(d => ({
+                ...d,
+                connected: (data.connectedDeviceIds ?? []).includes(d.unitId),
+            }));
+            setDevices(allDevices);
+            allProfilesRef.current = data.profiles;
+
+            // Use the newly detected device as active
+            const newDevice = allDevices.find(d => d.unitId === resp.device.unitId) ?? resp.device;
+            setDevice(newDevice);
+            setActiveDeviceId(newDevice.unitId);
+            setAppStatus('connected');
+
+            const deviceProfiles = data.profiles.filter(p => p.deviceName === newDevice.unitId);
+            setProfiles(deviceProfiles);
             setScripts(data.scripts);
-            if (data.profiles.length > 0 && !activeProfileId) {
-                setActiveProfileId(data.profiles[0].id);
-                setButtons([...data.profiles[0].buttons]);
+            if (deviceProfiles.length > 0 && !activeProfileId) {
+                setActiveProfileId(deviceProfiles[0].id);
+                setButtons([...deviceProfiles[0].buttons]);
             }
         } catch (err) {
             console.error('[DetectDevice] Failed:', err);
@@ -219,6 +262,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
         }
     }, [addToast, activeProfileId]);
+
+    // ─── Device selection ──────────────────────────────────────────────────────
+
+    const selectDevice = useCallback((id: string) => {
+        const dev = devicesRef.current.find(d => d.unitId === id);
+        if (!dev) {
+            console.warn('[selectDevice] Unknown device ID:', id);
+            return;
+        }
+
+        setDevice(dev);
+        setActiveDeviceId(id);
+
+        // Switch to the selected device's profiles
+        const deviceProfiles = allProfilesRef.current.filter(p => p.deviceName === id);
+        setProfiles(deviceProfiles);
+
+        if (deviceProfiles.length > 0) {
+            setActiveProfileId(deviceProfiles[0].id);
+            setButtons([...deviceProfiles[0].buttons]);
+        } else {
+            setActiveProfileId(null);
+            setButtons([]);
+        }
+        setDirty(false);
+        setSelectedCid(null);
+        setSaveStatus('idle');
+        setApplyStatus('idle');
+        setLayoutEditMode(false);
+
+        // Persist active device to preferences (non-critical)
+        fetch('/api/active-device', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId: id }),
+        }).catch(err => console.warn('[selectDevice] Failed to persist active device:', err));
+    }, []);
 
     // ─── Button updates ────────────────────────────────────────────────────────
 
@@ -257,12 +337,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setDirty(false);
             addToast({ type: 'success', message: 'Configuration saved' });
 
-            // Update the profile's buttons in local state
-            setProfiles(prev => prev.map(p =>
+            // Update the profile's buttons in local state (filtered + all)
+            const updater = (p: Profile) =>
                 p.id === activeProfileId
                     ? { ...p, buttons: [...buttons], updatedAt: new Date().toISOString() }
-                    : p
-            ));
+                    : p;
+            setProfiles(prev => prev.map(updater));
+            allProfilesRef.current = allProfilesRef.current.map(updater);
         } catch (err) {
             setSaveStatus('error');
             addToast({
@@ -317,12 +398,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 body: JSON.stringify({ profileId: activeProfileId }),
             }).catch(() => { /* non-critical */ });
 
-            // Update the profile's buttons in local state
-            setProfiles(prev => prev.map(p =>
+            // Update the profile's buttons in local state (filtered + all)
+            const updater = (p: Profile) =>
                 p.id === activeProfileId
                     ? { ...p, buttons: [...buttons], updatedAt: new Date().toISOString() }
-                    : p
-            ));
+                    : p;
+            setProfiles(prev => prev.map(updater));
+            allProfilesRef.current = allProfilesRef.current.map(updater);
         } catch (err) {
             setApplyStatus('error');
             addToast({
@@ -342,10 +424,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
 
         try {
-            // If cloning, copy buttons from the source profile; otherwise use blank defaults
+            // If cloning, copy buttons from the source profile (search all profiles); otherwise use blank defaults
             let baseButtons: ButtonConfig[];
             if (cloneFromProfileId) {
-                const source = profiles.find(p => p.id === cloneFromProfileId);
+                const source = allProfilesRef.current.find(p => p.id === cloneFromProfileId);
                 baseButtons = source
                     ? JSON.parse(JSON.stringify(source.buttons))
                     : device.buttons.filter(b => b.divertable).map(b => makeDefaultButtonConfig(b.cid));
@@ -365,7 +447,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 updatedAt: '',
             };
             const created = await apiSaveProfile(profile);
+            // Update both the filtered list (visible profiles) and the all-profiles ref
             setProfiles(prev => [...prev, created]);
+            allProfilesRef.current = [...allProfilesRef.current, created];
             setActiveProfileId(created.id);
             setButtons([...created.buttons]);
             setDirty(false);
@@ -379,7 +463,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 message: `Create failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
             });
         }
-    }, [device, profiles, addToast]);
+    }, [device, addToast]);
 
     const deleteCurrentProfile = useCallback(async () => {
         if (!activeProfileId) return;
@@ -391,6 +475,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await apiDeleteProfile(activeProfileId);
             const remaining = profiles.filter(p => p.id !== activeProfileId);
             setProfiles(remaining);
+            allProfilesRef.current = allProfilesRef.current.filter(p => p.id !== activeProfileId);
             if (remaining.length > 0) {
                 setActiveProfileId(remaining[0].id);
                 setButtons([...remaining[0].buttons]);
@@ -413,6 +498,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiUpdateProfile(id, changes);
             setProfiles(prev => prev.map(p => p.id === id ? updated : p));
+            allProfilesRef.current = allProfilesRef.current.map(p => p.id === id ? updated : p);
             addToast({ type: 'success', message: 'Profile updated' });
         } catch (err) {
             addToast({
@@ -434,7 +520,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 if (trigger === 'watcher') {
                     // Switch the UI to the watcher-selected profile
                     setActiveProfileId(profileId);
-                    const profile = profilesRef.current.find(p => p.id === profileId);
+                    // Search allProfilesRef so we find the profile even if it belongs to
+                    // a device different from the one currently shown in the UI
+                    const profile = allProfilesRef.current.find(p => p.id === profileId);
                     if (profile) {
                         setButtons([...profile.buttons]);
                     }
@@ -468,6 +556,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         <AppContext.Provider value={{
             appStatus,
             device,
+            devices,
+            activeDeviceId,
             profiles,
             activeProfileId,
             appliedProfileId,
@@ -484,6 +574,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             bootstrap,
             detectDevice,
+            selectDevice,
             selectProfile,
             setSelectedCid,
             updateButton,
