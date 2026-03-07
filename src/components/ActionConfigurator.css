@@ -13,7 +13,7 @@
     flex-direction: column;
     overflow-y: auto;
     animation: slideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-    z-index: 5;
+    z-index: 20;
 }
 
 @keyframes slideIn {

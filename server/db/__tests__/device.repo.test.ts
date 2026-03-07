@@ -143,4 +143,28 @@ describe('device.repo', () => {
         expect(result.buttons[0].layoutX).toBeUndefined();
         expect(result.buttons[0].layoutY).toBeUndefined();
     });
+
+    it('should persist labelSide in button layout', () => {
+        upsertDevice(makeDevice());
+
+        updateDeviceLayout('unit-123', {
+            86: { x: 20, y: 43, labelSide: 'left' },
+            253: { x: 50, y: 50, labelSide: 'right' },
+        });
+
+        const result = getDeviceById('unit-123')!;
+        expect(result.buttons[0].labelSide).toBe('left');
+        expect(result.buttons[1].labelSide).toBe('right');
+    });
+
+    it('should not set labelSide when not provided in layout', () => {
+        upsertDevice(makeDevice());
+
+        updateDeviceLayout('unit-123', {
+            86: { x: 20, y: 43 },
+        });
+
+        const result = getDeviceById('unit-123')!;
+        expect(result.buttons[0].labelSide).toBeUndefined();
+    });
 });

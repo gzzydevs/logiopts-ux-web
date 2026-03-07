@@ -122,7 +122,7 @@ export function runAction(script: string, args: string[] = []): Promise<{ output
 
 export function saveDeviceLayout(
   deviceId: string,
-  layout: Record<number, { x: number; y: number }>,
+  layout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>,
 ): Promise<{ saved: boolean }> {
   return api<{ saved: boolean }>(`/device/${deviceId}/layout`, {
     method: 'PUT',

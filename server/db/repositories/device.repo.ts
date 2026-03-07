@@ -29,7 +29,7 @@ interface DeviceMetadata {
     battery: number;
     buttons: KnownButton[];
     /** Per-button layout positions set by the layout editor */
-    buttonLayout?: Record<number, { x: number; y: number }>;
+    buttonLayout?: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -40,7 +40,12 @@ function rowToDevice(row: DeviceRow): KnownDevice {
     const buttons = meta.buttons.map(btn => {
         if (meta.buttonLayout && meta.buttonLayout[btn.cid]) {
             const pos = meta.buttonLayout[btn.cid];
-            return { ...btn, layoutX: pos.x, layoutY: pos.y };
+            return {
+                ...btn,
+                layoutX: pos.x,
+                layoutY: pos.y,
+                ...(pos.labelSide ? { labelSide: pos.labelSide } : {}),
+            };
         }
         return btn;
     });
@@ -85,7 +90,7 @@ const stmts = {
 export function upsertDevice(device: KnownDevice): void {
     // Preserve existing buttonLayout if present in DB
     const existing = stmts.getById.get(device.unitId) as DeviceRow | undefined;
-    let existingLayout: Record<number, { x: number; y: number }> | undefined;
+    let existingLayout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }> | undefined;
     if (existing) {
         const existingMeta: DeviceMetadata = JSON.parse(existing.metadata);
         existingLayout = existingMeta.buttonLayout;
@@ -113,7 +118,7 @@ export function upsertDevice(device: KnownDevice): void {
 
 export function updateDeviceLayout(
     deviceId: string,
-    layout: Record<number, { x: number; y: number }>,
+    layout: Record<number, { x: number; y: number; labelSide?: 'left' | 'right' }>,
 ): void {
     const row = stmts.getById.get(deviceId) as DeviceRow | undefined;
     if (!row) return;

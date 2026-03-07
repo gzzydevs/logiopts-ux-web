@@ -25,6 +25,8 @@ export interface KnownButton {
   layoutX?: number;
   /** Layout Y position in % (0..100) relative to mouse canvas */
   layoutY?: number;
+  /** Manual label side override — set by layout editor */
+  labelSide?: 'left' | 'right';
 }
 
 export type GestureDirection = 'None' | 'Up' | 'Down' | 'Left' | 'Right';

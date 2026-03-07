@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { saveDeviceLayout } from '../hooks/useApi';
-import { PenLine, X, Save, Loader2 } from 'lucide-react';
+import { PenLine, X, Save, Loader2, ArrowLeftRight } from 'lucide-react';
 import classNames from 'classnames';
 import './LayoutEditor.css';
 
@@ -17,6 +17,12 @@ const GenericMouseSVG = () => (
 /** Factor for rounding to 1 decimal place */
 const POSITION_PRECISION = 10;
 
+interface LayoutEntry {
+    x: number;
+    y: number;
+    labelSide?: 'left' | 'right';
+}
+
 interface LayoutEditorProps {
     onExit: () => void;
 }
@@ -28,12 +34,16 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
     const [saving, setSaving] = useState(false);
 
     // Build initial draft from existing button layout positions
-    const [draftLayout, setDraftLayout] = useState<Record<number, { x: number; y: number }>>(() => {
+    const [draftLayout, setDraftLayout] = useState<Record<number, LayoutEntry>>(() => {
         if (!device) return {};
-        const initial: Record<number, { x: number; y: number }> = {};
+        const initial: Record<number, LayoutEntry> = {};
         for (const btn of device.buttons) {
             if (btn.layoutX !== undefined && btn.layoutY !== undefined) {
-                initial[btn.cid] = { x: btn.layoutX, y: btn.layoutY };
+                initial[btn.cid] = {
+                    x: btn.layoutX,
+                    y: btn.layoutY,
+                    ...(btn.labelSide ? { labelSide: btn.labelSide } : {}),
+                };
             }
         }
         return initial;
@@ -82,6 +92,7 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
         setDraftLayout(prev => ({
             ...prev,
             [cid]: {
+                ...(prev[cid] || {}),
                 x: Math.round(clampedX * POSITION_PRECISION) / POSITION_PRECISION,
                 y: Math.round(clampedY * POSITION_PRECISION) / POSITION_PRECISION,
             },
@@ -92,6 +103,22 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
     const handleDragEnd = useCallback(() => {
         setDraggingCid(null);
     }, []);
+
+    const toggleLabelSide = useCallback((cid: number, currentSide: 'left' | 'right') => {
+        const newSide = currentSide === 'left' ? 'right' : 'left';
+        setDraftLayout(prev => {
+            const existing = prev[cid];
+            if (existing) {
+                return { ...prev, [cid]: { ...existing, labelSide: newSide } };
+            }
+            // If no draft position yet, find the button and use its current position
+            const btn = device?.buttons.find(b => b.cid === cid);
+            if (btn?.layoutX !== undefined && btn?.layoutY !== undefined) {
+                return { ...prev, [cid]: { x: btn.layoutX, y: btn.layoutY, labelSide: newSide } };
+            }
+            return prev;
+        });
+    }, [device]);
 
     const handleSave = useCallback(async () => {
         if (!device) return;
@@ -164,11 +191,16 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
                                 ? { top: `${btn.layoutY}%`, left: `${btn.layoutX}%` }
                                 : undefined;
 
-                        const labelSide = hasLayout
-                            ? (draftPos.x < 50 ? 'right' : 'left')
-                            : hasSavedLayout
-                                ? (btn.layoutX! < 50 ? 'right' : 'left')
-                                : posConfig.labelSide;
+                        // Label side: draft override > saved override > auto from X > CSS default
+                        const labelSide = draftPos?.labelSide
+                            ? draftPos.labelSide
+                            : btn.labelSide
+                                ? btn.labelSide
+                                : hasLayout
+                                    ? (draftPos.x < 50 ? 'right' : 'left')
+                                    : hasSavedLayout
+                                        ? (btn.layoutX! < 50 ? 'right' : 'left')
+                                        : posConfig.labelSide;
 
                         return (
                             <div
@@ -185,7 +217,19 @@ export const LayoutEditor: React.FC<LayoutEditorProps> = ({ onExit }) => {
                                 title={`Drag to reposition: ${btn.name}`}
                             >
                                 <div className={classNames('node-label-container', `label-${labelSide}`)}>
-                                    <div className="node-label">{btn.name}</div>
+                                    <div className="node-label layout-label">
+                                        <span>{btn.name}</span>
+                                        <button
+                                            className="label-side-toggle"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleLabelSide(btn.cid, labelSide);
+                                            }}
+                                            title={`Move label to ${labelSide === 'left' ? 'right' : 'left'}`}
+                                        >
+                                            <ArrowLeftRight size={12} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         );

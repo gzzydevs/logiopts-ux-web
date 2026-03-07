@@ -76,9 +76,11 @@ export const MousePreview: React.FC<MousePreviewProps> = ({ editMode = false }) 
                         ? { top: `${btn.layoutY}%`, left: `${btn.layoutX}%` }
                         : undefined;
 
-                    const labelSide = hasLayout
-                        ? labelSideFromX(btn.layoutX!)
-                        : posConfig.labelSide;
+                    const labelSide = btn.labelSide
+                        ? btn.labelSide
+                        : hasLayout
+                            ? labelSideFromX(btn.layoutX!)
+                            : posConfig.labelSide;
 
                     return (
                         <div
