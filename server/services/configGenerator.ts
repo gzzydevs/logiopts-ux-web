@@ -29,9 +29,6 @@ function actionToYaml(action: SolaarAction): any {
       return { 'mouse-scroll': [action.horizontal, action.vertical] };
     case 'Execute':
       return action.command;
-    case 'RunScript':
-      // From Solaar's perspective, running a script is just outputting the macroKey!
-      return [action.macroKey];
     default:
       return null;
   }

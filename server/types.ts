@@ -70,7 +70,7 @@ export type SolaarAction =
   | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
   | { type: 'MouseScroll'; horizontal: number; vertical: number }
   | { type: 'Execute'; command: string[] }      // ['pactl', 'set-sink-volume', ...]
-  | { type: 'RunScript'; scriptId: string; macroKey?: string }; // Run local script via Solaar Execute
+  | { type: 'RunScript'; scriptId: string }; // Run local script via Solaar Execute
 
 // ─── Action used in the UI gesture grid ──────────────────────────────────────
 

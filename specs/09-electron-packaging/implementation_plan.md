@@ -374,20 +374,127 @@ Ver la configuración completa en `task.md`.
 
 ---
 
+### 1.8 Directorio de datos de usuario (`userData`)
+
+Cuando la app se distribuye como AppImage/DEB/RPM, el binario reside en una ruta de solo lectura (`/opt/logitux/` o dentro del AppImage). Los scripts y la base de datos **no pueden vivir junto al binario** — necesitan un directorio que sea:
+
+- Escribible por el usuario
+- Persistente entre actualizaciones de la app
+- Separado del binario instalado
+
+#### Directorio estándar
+
+```
+~/.local/share/logitux/          ← app.getPath('userData') en Electron / XDG_DATA_HOME
+├── logitux.db                   ← base de datos SQLite
+└── scripts/                     ← scripts del usuario
+    ├── nightshift-up.sh
+    ├── nightshift-down.sh
+    └── nightshift-off.sh
+```
+
+#### Pasar `userData` al servidor Express
+
+En `electron/main/server-runner.ts`, inyectar la ruta como variable de entorno al arrancar el proceso del servidor:
+
+```typescript
+import { app } from 'electron';
+
+export async function startServer(): Promise<void> {
+  return new Promise((res, rej) => {
+    const serverPath = resolve(__dirname, '../../server/index.js');
+    serverProcess = fork(serverPath, [], {
+      env: {
+        ...process.env,
+        PORT: '3000',
+        NODE_ENV: 'production',
+        LOGITUX_DATA_DIR: app.getPath('userData'),   // ← nuevo
+      },
+      stdio: 'pipe',
+    });
+    // ...
+  });
+}
+```
+
+#### Adaptar el servidor para respetar `LOGITUX_DATA_DIR`
+
+En `server/db/index.ts`, resolver la ruta de la DB según el entorno:
+
+```typescript
+import { resolve } from 'node:path';
+
+const dataDir = process.env.LOGITUX_DATA_DIR
+  ?? resolve(process.cwd(), 'data');        // fallback para modo standalone/dev
+
+export const DB_PATH = resolve(dataDir, 'logitux.db');
+export const SCRIPTS_DIR = resolve(dataDir, 'scripts');
+```
+
+La función `seedFromDisk()` ya usa `SCRIPTS_DIR` implícitamente si se refactoriza para leerlo desde ahí en vez de hardcodearlo relativo al CWD.
+
+#### Primer arranque: copiar scripts bundleados
+
+Cuando `LOGITUX_DATA_DIR` existe pero `scripts/` está vacío (primera instalación), el servidor debe copiar los scripts por defecto desde `resources/scripts/` (incluidos en el paquete via `electron-builder` con `extraResources`):
+
+```typescript
+// server/db/index.ts — llamado al iniciar el servidor
+import { existsSync, mkdirSync, cpSync } from 'node:fs';
+
+export function ensureUserDataDir(): void {
+  mkdirSync(SCRIPTS_DIR, { recursive: true });
+
+  // En paquete instalado, copiar scripts por defecto si el dir está vacío
+  const resourcesScripts = process.env.LOGITUX_RESOURCES_DIR
+    ? resolve(process.env.LOGITUX_RESOURCES_DIR, 'scripts')
+    : null;
+
+  if (resourcesScripts && existsSync(resourcesScripts)) {
+    const files = readdirSync(SCRIPTS_DIR);
+    if (files.length === 0) {
+      cpSync(resourcesScripts, SCRIPTS_DIR, { recursive: true });
+    }
+  }
+}
+```
+
+En `electron-builder.yml`, declarar los scripts como `extraResources`:
+
+```yaml
+extraResources:
+  - from: scripts/
+    to: scripts/
+    filter: ["**/*.sh"]
+```
+
+Y en `server-runner.ts` pasar también `LOGITUX_RESOURCES_DIR`:
+
+```typescript
+LOGITUX_RESOURCES_DIR: process.resourcesPath,   // path de resources/ dentro del paquete
+```
+
+#### Modo standalone (sin Electron)
+
+Cuando el servidor corre directamente con `npm run server:dev` o `tsx server/index.ts`, `LOGITUX_DATA_DIR` no está definida y `dataDir` cae al valor por defecto (`./data`), manteniendo el comportamiento actual sin cambios.
+
+---
+
 ## Orden de Implementación
 
 1. Instalar dependencias de Electron
 2. Crear `electron/` con los 5 archivos de main process
 3. Crear `electron/preload/index.ts`
 4. Ajustar `tsconfig.json` y crear `tsconfig.electron.json`
-5. `SolaarStatusBanner.tsx` — nuevo componente frontend
-6. Actualizar `SettingsPanel.tsx` — toggle autostart
-7. Añadir `window.electronAPI` al `src/types.ts` global (declare global)
-8. Crear `electron-builder.yml`
-9. Agregar scripts al `package.json`
-10. Crear assets (icon.png, tray-icon.png)
-11. Test smoke: `npm run electron:dev`
-12. Test build: `npm run electron:build:appimage` y verificar que instala y corre
+5. **Adaptar `server/db/index.ts`** — respetar `LOGITUX_DATA_DIR` y `LOGITUX_RESOURCES_DIR`; agregar `ensureUserDataDir()`; exportar `SCRIPTS_DIR`
+6. **Actualizar `server/db/repositories/script.repo.ts`** y `seedFromDisk()` para usar `SCRIPTS_DIR` exportado en vez de path relativo al CWD
+7. `SolaarStatusBanner.tsx` — nuevo componente frontend
+8. Actualizar `SettingsPanel.tsx` — toggle autostart
+9. Añadir `window.electronAPI` al `src/types.ts` global (declare global)
+10. Crear `electron-builder.yml` con `extraResources` apuntando a `scripts/`
+11. Agregar scripts al `package.json`
+12. Crear assets (icon.png, tray-icon.png)
+13. Test smoke: `npm run electron:dev`
+14. Test build: `npm run electron:build:appimage` y verificar que instala, corre, y los scripts se copian a `~/.local/share/logitux/scripts/`
 
 ## Notas Importantes
 

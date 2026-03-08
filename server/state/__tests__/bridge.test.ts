@@ -144,20 +144,18 @@ describe('buttonConfigsToProfileConfig', () => {
         });
     });
 
-    it('should convert RunScript to KeyPress', () => {
+    it('should convert RunScript to None when script is not found', () => {
         const buttons: ButtonConfig[] = [
             makeButtonConfig(86, {
-                simpleAction: { type: 'RunScript', scriptId: 'some-uuid', macroKey: 'F10' },
+                simpleAction: { type: 'RunScript', scriptId: 'nonexistent-uuid' },
             }),
         ];
 
         const result = buttonConfigsToProfileConfig(buttons, 'dev', 'default');
 
-        // RunScript should become a KeyPress with the macro key
-        expect(result.buttons[0].actions.click).toEqual({
-            type: 'KeyPress',
-            keys: ['F10'],
-        });
+        // RunScript resolves the script path via DB; when not found it emits None
+        // (button is skipped since all actions are None)
+        expect(result.buttons).toHaveLength(0);
     });
 
     it('should handle multiple buttons', () => {
