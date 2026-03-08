@@ -1,5 +1,6 @@
 import { fork, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
+import { app } from 'electron';
 
 let serverProcess: ChildProcess | null = null;
 
@@ -7,7 +8,13 @@ export async function startServer(): Promise<void> {
   return new Promise((resolve_, reject) => {
     const serverPath = resolve(__dirname, '../../dist/server/index.js');
     serverProcess = fork(serverPath, [], {
-      env: { ...process.env, PORT: '3001', NODE_ENV: 'production' },
+      env: {
+        ...process.env,
+        PORT: '3001',
+        NODE_ENV: 'production',
+        LOGITUX_DATA_DIR: app.getPath('userData'),
+        LOGITUX_RESOURCES_DIR: process.resourcesPath,
+      },
       stdio: 'pipe',
     });
 

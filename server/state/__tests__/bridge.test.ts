@@ -4,6 +4,11 @@
  * These tests are pure logic — no DB or I/O needed.
  */
 
+// Mock db/index to avoid loading better-sqlite3 (it uses import.meta.url)
+jest.mock('../../db/index', () => ({ default: {}, SCRIPTS_DIR: '/tmp/test-scripts', DATA_DIR: '/tmp/test-data', DB_PATH: ':memory:' }));
+jest.mock('../../db/paths', () => ({ SCRIPTS_DIR: '/tmp/test-scripts', DATA_DIR: '/tmp/test-data', DB_PATH: ':memory:' }));
+jest.mock('../../db/repositories/script.repo', () => ({ getScriptById: jest.fn() }));
+
 import { buttonConfigsToProfileConfig, profileConfigToButtonConfigs } from '../bridge';
 import type { ButtonConfig, SolaarAction, GestureDirection as UIDirection } from '../../types';
 import type { ProfileConfig, ButtonMapping, Macro } from '../../solaar/schema';

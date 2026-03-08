@@ -17,6 +17,13 @@ testDb.exec(schema);
 
 jest.mock('../index', () => testDb);
 
+// Mock paths module to provide a test SCRIPTS_DIR
+jest.mock('../paths', () => ({
+    SCRIPTS_DIR: '/tmp/test-scripts',
+    DATA_DIR: '/tmp/test-data',
+    DB_PATH: ':memory:',
+}));
+
 // Mock fs operations to avoid writing to disk during tests
 jest.mock('node:fs', () => {
     const actual = jest.requireActual('node:fs');

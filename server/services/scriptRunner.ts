@@ -1,11 +1,8 @@
 import { execFile } from 'node:child_process';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { USE_HOST_SPAWN } from './solaarDetector.js';
 import { getScriptById } from '../db/repositories/script.repo.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCRIPTS_DIR = resolve(__dirname, '../../scripts');
+import { SCRIPTS_DIR } from '../db/paths.js';
 
 /**
  * Run a known script by name (for internal use like apply-solaar.sh).

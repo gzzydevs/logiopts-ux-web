@@ -22,7 +22,8 @@ import { profileConfigToButtonConfigs } from './state/bridge.js';
 import type { KnownDevice, KnownButton, ButtonConfig } from './types.js';
 
 // Initialize DB (runs schema.sql on first boot)
-import './db/index.js';
+import { ensureUserDataDir } from './db/index.js';
+ensureUserDataDir();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();

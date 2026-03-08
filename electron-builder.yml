@@ -11,6 +11,11 @@ files:
   - assets/**/*
   - package.json
 
+extraResources:
+  - from: scripts/
+    to: scripts/
+    filter: ["**/*.sh", "**/*.py", "**/*.js"]
+
 linux:
   target:
     - target: AppImage

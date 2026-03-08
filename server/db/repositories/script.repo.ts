@@ -6,10 +6,9 @@
  */
 
 import db from '../index';
+import { SCRIPTS_DIR } from '../paths.js';
 import { writeFileSync, unlinkSync, chmodSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-
-const SCRIPTS_DIR = resolve(process.cwd(), 'scripts');
 
 // ─── Row shape ───────────────────────────────────────────────────────────────
 
