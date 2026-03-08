@@ -51,7 +51,7 @@ if (MOCK_MODE) {
   app.use('/api', eventsRouter);
 }
 
-// Real bootstrap + watcher + keyListener — skipped in mock mode (handled by mockRouter)
+// Real bootstrap + watcher — skipped in mock mode (handled by mockRouter)
 if (!MOCK_MODE) {
 
 // Bootstrap endpoint — returns everything the UI needs on first load
@@ -316,10 +316,6 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
     });
   }
 });
-
-
-
-// keyListener + handleMacroKey no longer needed — RunScript uses Solaar Execute directly
 
 } // end !MOCK_MODE
 
