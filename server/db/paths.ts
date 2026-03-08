@@ -1,9 +1,10 @@
 /**
  * Centralized path resolution for data, scripts, and DB.
  *
- * LOGITUX_DATA_DIR (set by Electron main process) points to the writable
- * user-data directory (~/.local/share/logitux). In standalone/dev mode
- * it is undefined, so we fall back to ./data relative to the project root.
+ * LOGITUX_DATA_DIR (set by Electron main process via app.getPath('userData'))
+ * points to the writable user-data directory (~/.local/share/logitux).
+ * In standalone/dev mode it is undefined, so we fall back to ./data
+ * relative to the project root.
  */
 
 import { resolve } from 'node:path';
