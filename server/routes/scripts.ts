@@ -34,19 +34,44 @@ router.get('/scripts', async (_req, res) => {
     }
 });
 
-// GET /api/scripts/xinput-status — check if xinput is available on the host
+// GET /api/scripts/xinput-status — check if xinput is available, with OS-specific install hint
 router.get('/scripts/xinput-status', (_req, res) => {
     const checkCmd = USE_HOST_SPAWN_FOR_XINPUT ? 'flatpak-spawn' : 'which';
     const checkArgs = USE_HOST_SPAWN_FOR_XINPUT ? ['--host', 'which', 'xinput'] : ['xinput'];
     const result = spawnSync(checkCmd, checkArgs, { stdio: 'ignore' });
     const available = result.status === 0;
-    res.json({
-        ok: true,
-        data: {
-            available,
-            installHint: 'sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot',
-        },
-    });
+
+    // Detect OS from /etc/os-release
+    let osId = '';
+    let osIdLike = '';
+    try {
+        const { readFileSync } = require('node:fs');
+        const osRelease = readFileSync('/etc/os-release', 'utf-8');
+        const idMatch = osRelease.match(/^ID=["']?([^"'\n]+)["']?/m);
+        const idLikeMatch = osRelease.match(/^ID_LIKE=["']?([^"'\n]+)["']?/m);
+        osId = idMatch?.[1]?.toLowerCase() ?? '';
+        osIdLike = idLikeMatch?.[1]?.toLowerCase() ?? '';
+    } catch { /* ignore — non-Linux or no /etc/os-release */ }
+
+    const isRpmOstree = ['bazzite', 'silverblue', 'kinoite', 'coreos'].some(d => osId.includes(d) || osIdLike.includes(d));
+    const isFedora = osId.includes('fedora') || osIdLike.includes('fedora');
+    const isArch = osId.includes('arch') || osIdLike.includes('arch');
+    const isDebian = ['ubuntu', 'debian', 'mint', 'pop'].some(d => osId.includes(d) || osIdLike.includes(d));
+
+    let installHint: string;
+    if (isRpmOstree) {
+        installHint = 'sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot';
+    } else if (isFedora) {
+        installHint = 'sudo dnf install xorg-x11-server-utils';
+    } else if (isArch) {
+        installHint = 'sudo pacman -S xorg-xinput';
+    } else if (isDebian) {
+        installHint = 'sudo apt-get install xinput';
+    } else {
+        installHint = 'Install xinput via your package manager (e.g. xorg-x11-server-utils or xinput)';
+    }
+
+    res.json({ ok: true, data: { available, installHint, osId } });
 });
 
 // GET /api/scripts/macro-keys — available macro keys and which are in use

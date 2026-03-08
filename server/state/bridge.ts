@@ -65,8 +65,8 @@ function actionToMacro(action: SolaarAction): Macro {
         case 'Execute':
             return { type: 'Execute', command: action.command };
         case 'RunScript':
-            // RunScript maps to a KeyPress with the macro key
-            // (Solaar only knows about key presses; the server intercepts the key)
+            // Solaar fires the macro key (e.g. F1), keyListener intercepts it,
+            // profileApplier runs the script.
             return { type: 'KeyPress', keys: [action.macroKey] };
         default:
             return { type: 'None' };

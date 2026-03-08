@@ -24,7 +24,7 @@ export const MACRO_KEY_POOL: Record<string, number> = {
 };
 
 export class KeyListener extends EventEmitter {
-    private child: ReturnType<typeof spawn> | null = null;
+    private children: ReturnType<typeof spawn>[] = [];
     private keyMap: Record<number, string> = {};
 
     constructor() {
@@ -43,72 +43,105 @@ export class KeyListener extends EventEmitter {
     }
 
     start() {
-        if (this.child) return;
+        if (this.children.length > 0) return;
 
-        // Pre-flight: verify xinput is available on the host
-        const checkCmd = USE_HOST_SPAWN ? 'flatpak-spawn' : 'which';
-        const checkArgs = USE_HOST_SPAWN ? ['--host', 'which', 'xinput'] : ['xinput'];
-        const check = spawnSync(checkCmd, checkArgs, { stdio: 'ignore' });
-        if (check.status !== 0) {
+        const env = { ...process.env, DISPLAY: process.env.DISPLAY || ':0' };
+        const runSync = (args: string[]) => {
+            if (USE_HOST_SPAWN) {
+                return spawnSync('flatpak-spawn', ['--host', ...args], { env });
+            }
+            return spawnSync(args[0], args.slice(1), { env });
+        };
+
+        // Pre-flight: verify xinput is available
+        const checkResult = runSync(['xinput', '--version']);
+        if (checkResult.status !== 0) {
             xinputMissing = true;
             console.warn('[KeyListener] ⚠  xinput not found — macro key interception DISABLED.');
-            console.warn('[KeyListener]    To fix: sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot');
             return;
         }
 
-        // We use xinput from the host to listen for global key events.
-        // Always use flatpak-spawn --host (same as hostShell) — never distrobox-host-exec,
-        // which only works inside a distrobox container.
-        const cmd = USE_HOST_SPAWN ? 'flatpak-spawn' : 'xinput';
-        const args = USE_HOST_SPAWN
-            ? ['--host', 'xinput', 'test-xi2', '--root']
-            : ['test-xi2', '--root'];
+        // Parse xinput list to find ALL keyboard slave devices.
+        // `xinput test` does NOT support master devices (e.g. id=3 → "unable to find device").
+        // Solaar injects synthetic key events via XTest → arrives on "Virtual core XTEST keyboard".
+        // Physical Logitech keys → arrive on "Logitech USB Receiver" keyboard slave.
+        // We listen on ALL keyboard slaves to cover both paths.
+        const listResult = runSync(['xinput', 'list', '--short']);
+        const listOut = listResult.stdout?.toString() ?? '';
+        console.log('[KeyListener] xinput list output:\n' + listOut);
 
-        console.log(`[KeyListener] Starting: ${cmd} ${args.join(' ')}`);
-        try {
-            this.child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+        const deviceIds: { id: string; name: string }[] = [];
+        for (const line of listOut.split('\n')) {
+            // Match all slave keyboard devices
+            if (/slave\s+keyboard/i.test(line)) {
+                const m = line.match(/id=(\d+)/);
+                if (m) {
+                    const name = line.replace(/\s*↳\s*/, '').replace(/\s*id=\d+.*/, '').trim();
+                    deviceIds.push({ id: m[1], name });
+                }
+            }
+        }
 
-            let buffer = '';
-            this.child.stdout?.on('data', (data) => {
-                buffer += data.toString();
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // Keep the last incomplete line
+        if (deviceIds.length === 0) {
+            console.warn('[KeyListener] ⚠  No keyboard slave devices found — macro key interception DISABLED.');
+            return;
+        }
 
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    // Look for RawKeyPress events and extract detail (keycode)
-                    if (line.includes('EVENT type 13 (RawKeyPress)')) {
-                        // The detail line is usually 2 lines down, e.g., "    detail: 96"
-                        const match = lines[i + 2]?.match(/detail:\s*(\d+)/);
-                        if (match) {
-                            const keycode = parseInt(match[1], 10);
+        console.log(`[KeyListener] Found ${deviceIds.length} keyboard slaves: ${deviceIds.map(d => `${d.name} (id=${d.id})`).join(', ')}`);
+
+        // Spawn one xinput test per slave device
+        for (const dev of deviceIds) {
+            const [cmd, args]: [string, string[]] = USE_HOST_SPAWN
+                ? ['flatpak-spawn', ['--host', 'xinput', 'test', dev.id]]
+                : ['xinput', ['test', dev.id]];
+
+            console.log(`[KeyListener] Starting: ${cmd} ${args.join(' ')} — "${dev.name}" (id=${dev.id})`);
+            try {
+                const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env });
+
+                let buffer = '';
+                child.stdout?.on('data', (data) => {
+                    buffer += data.toString();
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        // xinput test output: "key press   67"
+                        const m = line.match(/key press\s+(\d+)/);
+                        if (m) {
+                            const keycode = parseInt(m[1], 10);
+                            console.log(`[KeyListener] key press keycode=${keycode} from device "${dev.name}" (id=${dev.id})`);
                             const keyName = this.keyMap[keycode];
                             if (keyName) {
+                                console.log(`[KeyListener] → matched macro key ${keyName}, firing event`);
                                 this.emit('keydown', keyName);
                             }
                         }
                     }
-                }
-            });
+                });
 
-            this.child.stderr?.on('data', (data: Buffer) => {
-                console.error('[KeyListener] xinput stderr:', data.toString().trim());
-            });
+                child.stderr?.on('data', (data: Buffer) => {
+                    const msg = data.toString().trim();
+                    if (msg) console.error(`[KeyListener] xinput stderr (device ${dev.id}):`, msg);
+                });
 
-            this.child.on('exit', (code) => {
-                console.warn(`[KeyListener] xinput exited with code ${code}`);
-                this.child = null;
-            });
-        } catch (e) {
-            console.error('[KeyListener] Failed to start xinput:', e);
+                child.on('exit', (code) => {
+                    console.warn(`[KeyListener] xinput for device "${dev.name}" (id=${dev.id}) exited with code ${code}`);
+                    this.children = this.children.filter(c => c !== child);
+                });
+
+                this.children.push(child);
+            } catch (e) {
+                console.error(`[KeyListener] Failed to start xinput for device ${dev.id}:`, e);
+            }
         }
     }
 
     stop() {
-        if (this.child) {
-            this.child.kill();
-            this.child = null;
+        for (const child of this.children) {
+            child.kill();
         }
+        this.children = [];
     }
 }
 

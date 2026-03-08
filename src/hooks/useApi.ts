@@ -172,6 +172,20 @@ export function fetchMacroKeys(): Promise<{ available: string[]; inUse: Record<s
   return api<{ available: string[]; inUse: Record<string, string> }>('/scripts/macro-keys');
 }
 
-export function fetchXinputStatus(): Promise<{ available: boolean; installHint: string }> {
-  return api<{ available: boolean; installHint: string }>('/scripts/xinput-status');
+export function fetchXinputStatus(): Promise<{ available: boolean; installHint: string; osId: string }> {
+  return api<{ available: boolean; installHint: string; osId: string }>('/scripts/xinput-status');
+}
+
+export function getPreference(key: string): Promise<string | null> {
+  return fetch(`/api/preferences/${key}`)
+    .then(r => r.json())
+    .then(j => (j.ok ? j.data.value : null))
+    .catch(() => null);
+}
+
+export function setPreference(key: string, value: string): Promise<void> {
+  return api<void>(`/preferences/${key}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
+  });
 }

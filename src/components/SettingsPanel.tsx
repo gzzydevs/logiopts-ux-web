@@ -1,18 +1,22 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
 import ScriptManager from './ScriptManager';
+import { setPreference, fetchXinputStatus } from '../hooks/useApi';
 import './SettingsPanel.css';
 
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const { windowWatcherActive, setWindowWatcherActive } = useAppContext();
+    const { windowWatcherActive, setWindowWatcherActive, scriptsEnabled, setScriptsEnabled } = useAppContext();
+    const [xinputStatus, setXinputStatus] = useState<{ available: boolean; installHint: string } | null>(null);
 
     useEffect(() => {
         fetch('/api/watcher/status')
             .then(res => res.json())
             .then(data => setWindowWatcherActive(data.active))
             .catch(console.error);
+
+        fetchXinputStatus().then(setXinputStatus).catch(console.error);
     }, [setWindowWatcherActive]);
 
     const toggleLanguage = () => {
@@ -26,6 +30,11 @@ export const SettingsPanel: React.FC = () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ active: checked })
         }).catch(console.error);
+    };
+
+    const handleScriptsToggle = async (checked: boolean) => {
+        setScriptsEnabled(checked);
+        await setPreference('scriptsEnabled', String(checked));
     };
 
     return (
@@ -45,6 +54,26 @@ export const SettingsPanel: React.FC = () => {
             </div>
 
             <div className="setting-item">
+                <span>System Scripts</span>
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        checked={scriptsEnabled}
+                        onChange={(e) => handleScriptsToggle(e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                </label>
+            </div>
+
+            {scriptsEnabled && xinputStatus && !xinputStatus.available && (
+                <div className="xinput-warning-panel">
+                    <strong>⚠️ xinput no encontrado</strong>
+                    <p>Los scripts no se ejecutarán al presionar botones hasta que instales xinput:</p>
+                    <code>{xinputStatus.installHint}</code>
+                </div>
+            )}
+
+            <div className="setting-item">
                 <span>Language</span>
                 <button
                     onClick={toggleLanguage}
@@ -62,7 +91,7 @@ export const SettingsPanel: React.FC = () => {
             </div>
 
             <div className="setting-divider" />
-            <ScriptManager />
+            {scriptsEnabled && <ScriptManager />}
 
         </aside>
     );

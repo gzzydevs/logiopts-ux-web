@@ -4,6 +4,7 @@ import KeyCapture, { displayKeysym } from './KeyCapture';
 import ComboBuilder from './ComboBuilder';
 import ScriptEditor from './ScriptEditor';
 import { fetchScripts, fetchMacroKeys, createScript, updateScript, fetchXinputStatus } from '../hooks/useApi';
+import { useAppContext } from '../context/AppContext';
 
 interface MacroKeyData {
   available: string[];
@@ -20,6 +21,7 @@ interface ActionPickerProps {
 }
 
 export default function ActionPicker({ value, onChange, systemActions, label, currentCidKey }: ActionPickerProps) {
+  const { scriptsEnabled } = useAppContext();
   const [keyCapOpen, setKeyCapOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
   const [cmdInput, setCmdInput] = useState(
@@ -104,7 +106,7 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
           <option value="MouseClick">Mouse Click</option>
           <option value="MouseScroll">Mouse Scroll</option>
           <option value="Execute">Execute Command</option>
-          <option value="RunScript">Run Script</option>
+          {scriptsEnabled && <option value="RunScript">Run Script</option>}
         </select>
 
         {/* Quick system action dropdown */}
