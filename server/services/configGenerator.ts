@@ -54,8 +54,7 @@ function buildRule(condition: SolaarRule['condition'], action: SolaarAction, com
   // Action
   const yamlAction = actionToYaml(action);
   if (yamlAction !== null) {
-    // For KeyPress or RunScript: wrap in KeyPress action type
-    if (action.type === 'KeyPress' || action.type === 'RunScript') {
+    if (action.type === 'KeyPress') {
       rule.push({ 'KeyPress': yamlAction });
     } else if (action.type === 'MouseClick') {
       rule.push({ 'MouseClick': [action.button, action.count] });
