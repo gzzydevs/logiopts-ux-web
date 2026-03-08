@@ -295,6 +295,27 @@
     gap: 10px !important;
 }
 
+.xinput-warning {
+    background: #3d2a00;
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    color: #fcd34d;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 8px 10px;
+}
+
+.xinput-warning code {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #fde68a;
+    word-break: break-all;
+    background: rgba(0,0,0,0.3);
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
 .runscript-picker .action-field {
     display: flex;
     flex-direction: column;

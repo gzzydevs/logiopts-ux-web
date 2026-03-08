@@ -59,6 +59,8 @@ export async function handleMacroKey(macroKey: string, activeClass: string | nul
 
     if (!activeProfile) return;
 
+    const { emitStoreEvent } = await import('../state/memory-store.js');
+
     // Search for RunScript matching this macro key
     for (const btn of activeProfile.buttons) {
         if (btn.gestureMode) {
@@ -66,13 +68,19 @@ export async function handleMacroKey(macroKey: string, activeClass: string | nul
                 const action = btn.gestures[dir as keyof typeof btn.gestures];
                 if (action.type === 'RunScript' && action.macroKey === macroKey) {
                     console.log(`[Macro] Running script ${action.scriptId} from gesture ${dir}`);
-                    runScriptById(action.scriptId).catch(e => console.error(e));
+                    runScriptById(action.scriptId).catch(e => {
+                        console.error(e);
+                        emitStoreEvent({ type: 'script-error', payload: { message: e.message } });
+                    });
                     return;
                 }
             }
         } else if (btn.simpleAction?.type === 'RunScript' && btn.simpleAction.macroKey === macroKey) {
             console.log(`[Macro] Running script ${btn.simpleAction.scriptId} from button`);
-            runScriptById(btn.simpleAction.scriptId).catch(e => console.error(e));
+            runScriptById(btn.simpleAction.scriptId).catch(e => {
+                console.error(e);
+                emitStoreEvent({ type: 'script-error', payload: { message: e.message } });
+            });
             return;
         }
     }

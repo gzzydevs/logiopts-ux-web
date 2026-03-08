@@ -39,7 +39,7 @@ export interface ProfileSwitchedPayload {
 }
 
 export interface StoreEvent {
-    type: 'profile-switched' | 'config-applied' | 'watcher-status';
+    type: 'profile-switched' | 'config-applied' | 'watcher-status' | 'script-error' | 'xinput-missing';
     payload: unknown;
 }
 

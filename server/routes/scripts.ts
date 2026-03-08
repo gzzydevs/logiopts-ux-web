@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express';
+import { spawnSync } from 'node:child_process';
 import {
     createScript,
     updateScript,
@@ -14,7 +15,7 @@ import {
     seedFromDisk,
 } from '../db/repositories/script.repo';
 import { runScriptById } from '../services/scriptRunner';
-import { MACRO_KEY_POOL } from '../services/keyListener';
+import { MACRO_KEY_POOL, USE_HOST_SPAWN_FOR_XINPUT } from '../services/keyListener.js';
 import { getAllProfiles } from './profiles';
 
 const router = Router();
@@ -31,6 +32,21 @@ router.get('/scripts', async (_req, res) => {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         res.status(500).json({ ok: false, error: msg });
     }
+});
+
+// GET /api/scripts/xinput-status — check if xinput is available on the host
+router.get('/scripts/xinput-status', (_req, res) => {
+    const checkCmd = USE_HOST_SPAWN_FOR_XINPUT ? 'flatpak-spawn' : 'which';
+    const checkArgs = USE_HOST_SPAWN_FOR_XINPUT ? ['--host', 'which', 'xinput'] : ['xinput'];
+    const result = spawnSync(checkCmd, checkArgs, { stdio: 'ignore' });
+    const available = result.status === 0;
+    res.json({
+        ok: true,
+        data: {
+            available,
+            installHint: 'sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot',
+        },
+    });
 });
 
 // GET /api/scripts/macro-keys — available macro keys and which are in use

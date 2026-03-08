@@ -459,6 +459,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Could refresh data if needed
         });
 
+        es.addEventListener('xinput-missing', () => {
+            addToast({
+                type: 'warning',
+                message: '⚠️ xinput no está instalado — los scripts no se ejecutarán al presionar botones. Instalá xorg-x11-server-utils y reiniciá.',
+            });
+        });
+
+        es.addEventListener('script-error', (e) => {
+            try {
+                const { message } = JSON.parse(e.data);
+                addToast({ type: 'error', message: `Script error: ${message}` });
+            } catch { /* ignore */ }
+        });
+
         return () => es.close();
     }, [addToast]);
 

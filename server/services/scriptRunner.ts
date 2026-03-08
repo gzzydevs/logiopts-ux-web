@@ -23,7 +23,15 @@ export function runScriptById(scriptId: string, args: string[] = [], stdin?: str
   const script = getScriptById(scriptId);
   if (!script) return Promise.reject(new Error(`Script not found: ${scriptId}`));
   if (!script.executable) return Promise.reject(new Error(`Script is not executable: ${script.name}`));
-  return execScript(script.path, args, stdin);
+  console.log(`[Script] Running: ${script.name} (${script.path})`);
+  return execScript(script.path, args, stdin).then(out => {
+    if (out) console.log(`[Script] ${script.name} output:\n${out}`);
+    else console.log(`[Script] ${script.name} exited OK (no output)`);
+    return out;
+  }).catch(err => {
+    console.error(`[Script] ${script.name} failed: ${err.message}`);
+    throw err;
+  });
 }
 
 function execScript(scriptPath: string, args: string[] = [], stdin?: string): Promise<string> {

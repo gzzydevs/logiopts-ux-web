@@ -3,7 +3,7 @@ import type { SolaarAction, SystemAction, Script } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
 import ComboBuilder from './ComboBuilder';
 import ScriptEditor from './ScriptEditor';
-import { fetchScripts, fetchMacroKeys, createScript, updateScript } from '../hooks/useApi';
+import { fetchScripts, fetchMacroKeys, createScript, updateScript, fetchXinputStatus } from '../hooks/useApi';
 
 interface MacroKeyData {
   available: string[];
@@ -29,11 +29,15 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
   const [macroKeys, setMacroKeys] = useState<MacroKeyData>({ available: [], inUse: {} });
   const [scriptEditorOpen, setScriptEditorOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | undefined>(undefined);
+  const [xinputMissing, setXinputMissing] = useState(false);
 
   useEffect(() => {
     if (value.type === 'RunScript' || value.type === 'None') {
       fetchScripts().then(setScripts).catch(console.error);
       fetchMacroKeys().then(setMacroKeys).catch(console.error);
+    }
+    if (value.type === 'RunScript') {
+      fetchXinputStatus().then(s => setXinputMissing(!s.available)).catch(() => {});
     }
   }, [value.type]);
 
@@ -58,7 +62,7 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
         setCmdInput('');
         break;
       case 'RunScript':
-        onChange({ type: 'RunScript', scriptId: '', macroKey: macroKeys.available[0] || 'F13' });
+        onChange({ type: 'RunScript', scriptId: '', macroKey: macroKeys.available[0] || 'F1' });
         break;
     }
   }
@@ -211,6 +215,12 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
 
       {actionType === 'RunScript' && value.type === 'RunScript' && (
         <div className="action-detail runscript-picker">
+          {xinputMissing && (
+            <div className="xinput-warning">
+              ⚠️ <strong>xinput no está instalado</strong> — los scripts no se van a ejecutar al presionar botones.<br />
+              <code>sudo rpm-ostree install xorg-x11-server-utils &amp;&amp; systemctl reboot</code>
+            </div>
+          )}
           <label className="action-field">
             <span>Script</span>
             <div className="script-select-row">
