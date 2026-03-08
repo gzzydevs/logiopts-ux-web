@@ -31,7 +31,7 @@ function actionToYaml(action: SolaarAction): any {
       return action.command;
     case 'RunScript':
       // From Solaar's perspective, running a script is just outputting the macroKey!
-      return [action.macroKey || 'F12'];
+      return [action.macroKey];
     default:
       return null;
   }

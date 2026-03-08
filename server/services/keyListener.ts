@@ -2,14 +2,36 @@ import { spawn } from 'node:child_process';
 import EventEmitter from 'node:events';
 import { USE_HOST_SPAWN, HOST_SPAWN_BIN } from './solaarDetector.js';
 
+/** X11 keycodes for macro keys F13-F20 (standard Xorg) */
+export const MACRO_KEY_POOL: Record<string, number> = {
+    F13: 191,
+    F14: 192,
+    F15: 193,
+    F16: 194,
+    F17: 195,
+    F18: 196,
+    F19: 197,
+    F20: 198,
+};
+
 export class KeyListener extends EventEmitter {
     private child: ReturnType<typeof spawn> | null = null;
-    private keyMap: Record<number, string> = {
-        96: 'F12',
-        191: 'F13',
-        192: 'F14',
-        193: 'F15',
-    };
+    private keyMap: Record<number, string> = {};
+
+    constructor() {
+        super();
+        // Default: listen on all macro keys
+        this.setActiveMacroKeys(Object.keys(MACRO_KEY_POOL));
+    }
+
+    /** Update which macro keys are actively listened for */
+    setActiveMacroKeys(keys: string[]) {
+        this.keyMap = {};
+        for (const key of keys) {
+            const code = MACRO_KEY_POOL[key];
+            if (code) this.keyMap[code] = key;
+        }
+    }
 
     start() {
         if (this.child) return;

@@ -147,7 +147,7 @@ describe('buttonConfigsToProfileConfig', () => {
     it('should convert RunScript to KeyPress', () => {
         const buttons: ButtonConfig[] = [
             makeButtonConfig(86, {
-                simpleAction: { type: 'RunScript', script: 'volume.sh', macroKey: 'F10' },
+                simpleAction: { type: 'RunScript', scriptId: 'some-uuid', macroKey: 'F10' },
             }),
         ];
 

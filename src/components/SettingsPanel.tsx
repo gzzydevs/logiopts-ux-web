@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
+import ScriptManager from './ScriptManager';
 import './SettingsPanel.css';
 
 export const SettingsPanel: React.FC = () => {
@@ -59,6 +60,9 @@ export const SettingsPanel: React.FC = () => {
                     {i18n.language.toUpperCase()}
                 </button>
             </div>
+
+            <div className="setting-divider" />
+            <ScriptManager />
 
         </aside>
     );

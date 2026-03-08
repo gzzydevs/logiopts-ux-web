@@ -1,7 +1,7 @@
 import { detectSolaar } from './solaarDetector.js';
 import { jsonToSolaarYaml } from '../solaar/index.js';
 import { buttonConfigsToProfileConfig } from '../state/bridge.js';
-import { runScript } from './scriptRunner.js';
+import { runScript, runScriptById } from './scriptRunner.js';
 import type { Profile } from '../types.js';
 
 export async function applyProfileToSolaar(profile: Profile): Promise<boolean> {
@@ -65,14 +65,14 @@ export async function handleMacroKey(macroKey: string, activeClass: string | nul
             for (const dir in btn.gestures) {
                 const action = btn.gestures[dir as keyof typeof btn.gestures];
                 if (action.type === 'RunScript' && action.macroKey === macroKey) {
-                    console.log(`[Macro] Running script ${action.script} from gesture ${dir}`);
-                    runScript(action.script).catch(e => console.error(e));
+                    console.log(`[Macro] Running script ${action.scriptId} from gesture ${dir}`);
+                    runScriptById(action.scriptId).catch(e => console.error(e));
                     return;
                 }
             }
         } else if (btn.simpleAction?.type === 'RunScript' && btn.simpleAction.macroKey === macroKey) {
-            console.log(`[Macro] Running script ${btn.simpleAction.script} from button`);
-            runScript(btn.simpleAction.script).catch(e => console.error(e));
+            console.log(`[Macro] Running script ${btn.simpleAction.scriptId} from button`);
+            runScriptById(btn.simpleAction.scriptId).catch(e => console.error(e));
             return;
         }
     }

@@ -67,7 +67,7 @@ function actionToMacro(action: SolaarAction): Macro {
         case 'RunScript':
             // RunScript maps to a KeyPress with the macro key
             // (Solaar only knows about key presses; the server intercepts the key)
-            return { type: 'KeyPress', keys: [action.macroKey || 'F12'] };
+            return { type: 'KeyPress', keys: [action.macroKey] };
         default:
             return { type: 'None' };
     }
