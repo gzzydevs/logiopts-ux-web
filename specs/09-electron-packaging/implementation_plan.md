@@ -501,3 +501,4 @@ Cuando el servidor corre directamente con `npm run server:dev` o `tsx server/ind
 - **No romper el flujo web**: el servidor Express debe seguir funcionando standalone (`npm run server:dev`) sin Electron. El código del servidor no debe tener imports de Electron.
 - **ESM vs CJS en Electron**: Electron 34 soporta ESM nativo en el main process. Usar `"type": "module"` en el package.json de electron o configurar correctamente el bundler.
 - **Sandbox en Bazzite/Flatpak**: si LogiTux mismo se distribuye como Flatpak en el futuro, hay que configurar los permisos para acceso a `/dev/input` y para ejecutar `xinput`. Esto es una iteración futura; por ahora el target es AppImage/DEB/RPM que corren nativos.
+- **Scripts en modo empaquetado**: Los scripts se empaquetan como `extraResources` y se copian al directorio de datos de usuario (`~/.local/share/logitux/scripts/`) en el primer arranque via `ensureUserDataDir()`.
