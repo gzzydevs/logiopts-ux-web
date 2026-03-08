@@ -88,6 +88,18 @@ export const SettingsPanel: React.FC = () => {
             </div>
 
             <div className="setting-item">
+                <span>System Scripts</span>
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        checked={scriptsEnabled}
+                        onChange={(e) => handleScriptsToggle(e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                </label>
+            </div>
+
+            <div className="setting-item">
                 <span>Language</span>
                 <button
                     onClick={toggleLanguage}
