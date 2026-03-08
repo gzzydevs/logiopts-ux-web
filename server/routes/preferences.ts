@@ -48,6 +48,7 @@ router.put('/preferences/:key', (req, res) => {
             return res.status(400).json({ ok: false, error: 'Missing value' });
         }
         setPreference(req.params.key, String(value));
+
         res.json({ ok: true });
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Unknown error';

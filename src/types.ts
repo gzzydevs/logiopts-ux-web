@@ -37,7 +37,7 @@ export type SolaarAction =
   | { type: 'MouseClick'; button: 'left' | 'middle' | 'right'; count: number | 'click' }
   | { type: 'MouseScroll'; horizontal: number; vertical: number }
   | { type: 'Execute'; command: string[] }
-  | { type: 'RunScript'; script: string; macroKey?: string };
+  | { type: 'RunScript'; scriptId: string };
 
 export interface SolaarRule {
   comment?: string;

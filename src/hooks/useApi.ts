@@ -9,6 +9,7 @@ import type {
   Profile,
   SolaarRule,
   BootstrapData,
+  Script,
 } from '../types';
 
 const BASE = '/api';
@@ -134,5 +135,49 @@ export function saveDeviceLayout(
   return api<{ saved: boolean }>(`/device/${deviceId}/layout`, {
     method: 'PUT',
     body: JSON.stringify({ layout }),
+  });
+}
+
+// ─── Scripts ─────────────────────────────────────────────────────────────────
+
+export function fetchScripts(): Promise<Script[]> {
+  return api<Script[]>('/scripts');
+}
+
+export function createScript(data: { name: string; content: string; executable: boolean }): Promise<Script> {
+  return api<Script>('/scripts', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateScript(id: string, data: { name?: string; content?: string; executable?: boolean }): Promise<Script> {
+  return api<Script>(`/scripts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteScript(id: string): Promise<void> {
+  return api<void>(`/scripts/${id}`, { method: 'DELETE' });
+}
+
+export function testScript(id: string): Promise<{ output: string; exitCode: number }> {
+  return api<{ output: string; exitCode: number }>(`/scripts/${id}/test`, {
+    method: 'POST',
+  });
+}
+
+export function getPreference(key: string): Promise<string | null> {
+  return fetch(`/api/preferences/${key}`)
+    .then(r => r.json())
+    .then(j => (j.ok ? j.data.value : null))
+    .catch(() => null);
+}
+
+export function setPreference(key: string, value: string): Promise<void> {
+  return api<void>(`/preferences/${key}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value }),
   });
 }

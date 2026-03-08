@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
+import ScriptManager from './ScriptManager';
+import { setPreference } from '../hooks/useApi';
 import './SettingsPanel.css';
 
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const { windowWatcherActive, setWindowWatcherActive } = useAppContext();
+    const { windowWatcherActive, setWindowWatcherActive, scriptsEnabled, setScriptsEnabled } = useAppContext();
 
     useEffect(() => {
         fetch('/api/watcher/status')
@@ -27,6 +29,11 @@ export const SettingsPanel: React.FC = () => {
         }).catch(console.error);
     };
 
+    const handleScriptsToggle = async (checked: boolean) => {
+        setScriptsEnabled(checked);
+        await setPreference('scriptsEnabled', String(checked));
+    };
+
     return (
         <aside className="settings-panel">
             <h3>Settings</h3>
@@ -38,6 +45,18 @@ export const SettingsPanel: React.FC = () => {
                         type="checkbox"
                         checked={windowWatcherActive}
                         onChange={(e) => handleWatcherToggle(e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                </label>
+            </div>
+
+            <div className="setting-item">
+                <span>System Scripts</span>
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        checked={scriptsEnabled}
+                        onChange={(e) => handleScriptsToggle(e.target.checked)}
                     />
                     <span className="slider"></span>
                 </label>
@@ -59,6 +78,9 @@ export const SettingsPanel: React.FC = () => {
                     {i18n.language.toUpperCase()}
                 </button>
             </div>
+
+            <div className="setting-divider" />
+            {scriptsEnabled && <ScriptManager />}
 
         </aside>
     );

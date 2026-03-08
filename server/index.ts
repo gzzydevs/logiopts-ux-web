@@ -11,7 +11,6 @@ import preferencesRouter from './routes/preferences.js';
 import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
-import { keyListener } from './services/keyListener.js';
 import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
@@ -52,7 +51,7 @@ if (MOCK_MODE) {
   app.use('/api', eventsRouter);
 }
 
-// Real bootstrap + watcher + keyListener — skipped in mock mode (handled by mockRouter)
+// Real bootstrap + watcher — skipped in mock mode (handled by mockRouter)
 if (!MOCK_MODE) {
 
 // Bootstrap endpoint — returns everything the UI needs on first load
@@ -316,15 +315,6 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
       payload: { profileId: target.id, profileName: target.name, trigger: 'watcher' },
     });
   }
-});
-
-
-
-keyListener.start();
-keyListener.on('keydown', async (macroKey) => {
-  const activeClass = windowWatcher.getCurrentClass();
-  const { handleMacroKey } = await import('./services/profileApplier.js');
-  await handleMacroKey(macroKey, activeClass);
 });
 
 } // end !MOCK_MODE

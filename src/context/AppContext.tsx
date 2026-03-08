@@ -43,6 +43,7 @@ interface AppContextType {
     applyStatus: ApplyStatus;
     toasts: Toast[];
     windowWatcherActive: boolean;
+    scriptsEnabled: boolean;
     selectedCid: number | null;
     dirty: boolean;
     isLayoutEditMode: boolean;
@@ -58,6 +59,7 @@ interface AppContextType {
     addToast: (toast: Omit<Toast, 'id'>) => void;
     removeToast: (id: string) => void;
     setWindowWatcherActive: (active: boolean) => void;
+    setScriptsEnabled: (enabled: boolean) => void;
     setLayoutEditMode: (active: boolean) => void;
     createNewProfile: (name: string, windowClasses?: string[], cloneFromProfileId?: string) => Promise<void>;
     deleteCurrentProfile: () => Promise<void>;
@@ -98,6 +100,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [applyStatus, setApplyStatus] = useState<ApplyStatus>('idle');
     const [toasts, setToasts] = useState<Toast[]>([]);
     const [windowWatcherActive, setWindowWatcherActive] = useState(false);
+    const [scriptsEnabled, setScriptsEnabled] = useState(false);
     const [selectedCid, setSelectedCid] = useState<number | null>(null);
     const [dirty, setDirty] = useState(false);
     const [isLayoutEditMode, setLayoutEditMode] = useState(false);
@@ -180,6 +183,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Restore window watcher state from preferences
             if (data.preferences?.windowWatcherEnabled === 'true') {
                 setWindowWatcherActive(true);
+            }
+            if (data.preferences?.scriptsEnabled === 'true') {
+                setScriptsEnabled(true);
             }
 
             setAppStatus(dev ? 'connected' : 'no-device');
@@ -478,6 +484,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             applyStatus,
             toasts,
             windowWatcherActive,
+            scriptsEnabled,
             selectedCid,
             dirty,
             isLayoutEditMode,
@@ -492,6 +499,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addToast,
             removeToast,
             setWindowWatcherActive,
+            setScriptsEnabled,
             setLayoutEditMode,
             createNewProfile,
             deleteCurrentProfile,

@@ -46,34 +46,3 @@ export async function applyProfileToSolaar(profile: Profile): Promise<boolean> {
     }
 }
 
-export async function handleMacroKey(macroKey: string, activeClass: string | null) {
-    const { getAllProfiles } = await import('../routes/profiles.js');
-    const profiles = await getAllProfiles();
-
-    // Determine active profile
-    let activeProfile = profiles.find(p => p.id === 'default' || p.name.toLowerCase() === 'default');
-    if (activeClass) {
-        const appProfile = profiles.find(p => p.windowClasses?.includes(activeClass));
-        if (appProfile) activeProfile = appProfile;
-    }
-
-    if (!activeProfile) return;
-
-    // Search for RunScript matching this macro key
-    for (const btn of activeProfile.buttons) {
-        if (btn.gestureMode) {
-            for (const dir in btn.gestures) {
-                const action = btn.gestures[dir as keyof typeof btn.gestures];
-                if (action.type === 'RunScript' && action.macroKey === macroKey) {
-                    console.log(`[Macro] Running script ${action.script} from gesture ${dir}`);
-                    runScript(action.script).catch(e => console.error(e));
-                    return;
-                }
-            }
-        } else if (btn.simpleAction?.type === 'RunScript' && btn.simpleAction.macroKey === macroKey) {
-            console.log(`[Macro] Running script ${btn.simpleAction.script} from button`);
-            runScript(btn.simpleAction.script).catch(e => console.error(e));
-            return;
-        }
-    }
-}

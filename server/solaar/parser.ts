@@ -108,7 +108,7 @@ function macroToRuleLines(macro: Macro): string[] {
         case 'MouseScroll':
             return [`  - MouseScroll: [${macro.horizontal}, ${macro.vertical}]`];
         case 'Execute':
-            return [`  - Execute: ${macro.command.join(' ')}`];
+            return [`  - Execute: [${macro.command.join(', ')}]`];
         default:
             return [];
     }

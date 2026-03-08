@@ -15,6 +15,7 @@ import type {
 } from '../types';
 
 import { CID_MAP } from '../services/deviceDatabase.js';
+import { getScriptById } from '../db/repositories/script.repo.js';
 
 import type {
     ProfileConfig,
@@ -64,10 +65,13 @@ function actionToMacro(action: SolaarAction): Macro {
             };
         case 'Execute':
             return { type: 'Execute', command: action.command };
-        case 'RunScript':
-            // RunScript maps to a KeyPress with the macro key
-            // (Solaar only knows about key presses; the server intercepts the key)
-            return { type: 'KeyPress', keys: [action.macroKey || 'F12'] };
+        case 'RunScript': {
+            // Resolve script path and emit Solaar Execute directly.
+            // Solaar runs subprocess.Popen(args) natively on the host.
+            const script = getScriptById(action.scriptId);
+            if (!script || !script.path) return { type: 'None' };
+            return { type: 'Execute', command: ['bash', script.path] };
+        }
         default:
             return { type: 'None' };
     }
