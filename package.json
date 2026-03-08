@@ -14,10 +14,11 @@
     "test": "jest --verbose",
     "test:coverage": "jest --coverage --verbose",
     "electron:dev": "concurrently \"npm run dev:server\" \"wait-on http://localhost:3001 && electron .\"",
-    "electron:build": "npm run build && tsc -p tsconfig.electron.json && electron-builder --linux",
-    "electron:build:deb": "npm run electron:build -- --target deb",
-    "electron:build:rpm": "npm run electron:build -- --target rpm",
-    "electron:build:appimage": "npm run electron:build -- --target AppImage"
+    "electron:compile": "tsc -p tsconfig.electron.json && printf '{\"type\":\"commonjs\"}' > dist-electron/package.json",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --linux",
+    "electron:build:deb": "npm run build && npm run electron:compile && electron-builder --linux deb",
+    "electron:build:rpm": "npm run build && npm run electron:compile && electron-builder --linux rpm",
+    "electron:build:appimage": "npm run build && npm run electron:compile && electron-builder --linux AppImage"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.2",
