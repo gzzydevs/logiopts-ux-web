@@ -320,7 +320,10 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
 
 
 
-keyListener.start();
+// Only start keyListener if scripts are enabled (avoids unnecessary key monitoring)
+if (getPreference('scriptsEnabled') === 'true') {
+  keyListener.start();
+}
 keyListener.on('keydown', async (macroKey) => {
   const activeClass = windowWatcher.getCurrentClass();
   const { handleMacroKey } = await import('./services/profileApplier.js');

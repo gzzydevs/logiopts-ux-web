@@ -110,10 +110,9 @@ export class KeyListener extends EventEmitter {
                         const m = line.match(/key press\s+(\d+)/);
                         if (m) {
                             const keycode = parseInt(m[1], 10);
-                            console.log(`[KeyListener] key press keycode=${keycode} from device "${dev.name}" (id=${dev.id})`);
                             const keyName = this.keyMap[keycode];
                             if (keyName) {
-                                console.log(`[KeyListener] → matched macro key ${keyName}, firing event`);
+                                console.log(`[KeyListener] macro key ${keyName} (keycode=${keycode}) from "${dev.name}" (id=${dev.id})`);
                                 this.emit('keydown', keyName);
                             }
                         }
