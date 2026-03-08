@@ -14,6 +14,7 @@ let serverProcess: ChildProcess | null = null;
 export async function startServer(): Promise<void> {
   return new Promise((res, rej) => {
     const serverPath = resolve(__dirname, '../../dist/server/index.js');
+    let started = false;
 
     serverProcess = fork(serverPath, [], {
       env: {
@@ -31,15 +32,23 @@ export async function startServer(): Promise<void> {
     serverProcess.stdout?.on('data', (d: Buffer) => {
       const msg = d.toString();
       process.stdout.write(`[Server] ${msg}`);
-      if (msg.includes('running on')) res();
+      if (!started && msg.includes('running on')) {
+        started = true;
+        res();
+      }
     });
 
     serverProcess.stderr?.on('data', (d: Buffer) => {
       process.stderr.write(`[Server:err] ${d.toString()}`);
     });
 
-    // Safety timeout — resolve anyway after 8s
-    setTimeout(res, 8000);
+    // Safety timeout — resolve if started, reject otherwise
+    setTimeout(() => {
+      if (!started) {
+        console.warn('[Server] Startup timeout — server may not be ready');
+        res(); // Resolve anyway to allow the window to attempt loading
+      }
+    }, 8000);
   });
 }
 

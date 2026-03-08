@@ -13,6 +13,7 @@ import { startSolaarMinimized, startSolaarPolling, stopSolaarPolling } from './s
 import { setAutostart, isAutostartEnabled } from './autostart.js';
 
 let mainWindow: BrowserWindow | null = null;
+let isQuitting = false;
 const SERVER_PORT = 3001;
 
 app.whenReady().then(async () => {
@@ -36,7 +37,7 @@ app.whenReady().then(async () => {
 
   // Hide instead of close (minimize to tray)
   mainWindow.on('close', (e) => {
-    if (!(app as any).isQuitting) {
+    if (!isQuitting) {
       e.preventDefault();
       mainWindow?.hide();
     }
@@ -58,7 +59,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => { /* no-op: tray keeps the app alive */ });
 
 app.on('before-quit', () => {
-  (app as any).isQuitting = true;
+  isQuitting = true;
   stopSolaarPolling();
   stopServer();
 });

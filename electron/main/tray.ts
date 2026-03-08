@@ -59,7 +59,6 @@ export function updateTrayMenu(state: SolaarState): void {
     {
       label: 'Salir',
       click: () => {
-        (app as any).isQuitting = true;
         app.quit();
       },
     },
