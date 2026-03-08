@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAppContext } from './context/AppContext';
 import { Topbar } from './components/Topbar';
+import { SolaarStatusBanner } from './components/SolaarStatusBanner';
 import { MousePreview } from './components/MousePreview';
 import { LayoutEditor } from './components/LayoutEditor';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -17,6 +18,7 @@ export default function App() {
   return (
     <div className="app">
       <Topbar />
+      <SolaarStatusBanner />
 
       <div className="app-body">
         {appStatus === 'loading' && (

@@ -2,6 +2,7 @@
   "name": "logitux-web",
   "version": "1.0.0",
   "type": "module",
+  "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx watch server/index.ts",
@@ -11,7 +12,12 @@
     "build": "vite build",
     "start": "node dist/server/index.js",
     "test": "jest --verbose",
-    "test:coverage": "jest --coverage --verbose"
+    "test:coverage": "jest --coverage --verbose",
+    "electron:dev": "concurrently \"npm run dev:server\" \"wait-on http://localhost:3001 && electron .\"",
+    "electron:build": "npm run build && tsc -p tsconfig.electron.json && electron-builder --linux",
+    "electron:build:deb": "npm run electron:build -- --target deb",
+    "electron:build:rpm": "npm run electron:build -- --target rpm",
+    "electron:build:appimage": "npm run electron:build -- --target AppImage"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.2",
@@ -37,12 +43,15 @@
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^9.1.2",
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1",
     "jest": "^30.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
-    "vite": "^6.3.2"
+    "vite": "^6.3.2",
+    "wait-on": "^9.0.4"
   }
 }

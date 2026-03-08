@@ -1,0 +1,52 @@
+appId: com.logitux.app
+productName: LogiTux
+copyright: LogiTux contributors
+
+directories:
+  output: release
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - assets/**/*
+  - package.json
+
+extraResources:
+  - from: scripts/
+    to: scripts/
+    filter:
+      - "**/*.sh"
+      - "**/*.py"
+      - "**/*.js"
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+    - target: rpm
+      arch: [x64, arm64]
+    - target: pacman
+      arch: [x64]
+  category: Utility
+  icon: assets/icon.png
+  desktop:
+    Name: LogiTux
+    Comment: Logitech mouse button configuration
+    Keywords: logitech;solaar;mouse;input
+  maintainer: LogiTux contributors
+
+deb:
+  depends:
+    - solaar | flatpak
+    - xinput
+    - xdotool
+
+rpm:
+  depends:
+    - solaar
+    - xinput
+    - xdotool
+
+afterPack: electron/scripts/after-pack.js

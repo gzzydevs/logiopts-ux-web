@@ -6,10 +6,12 @@
  */
 
 import db from '../index';
-import { writeFileSync, unlinkSync, chmodSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { writeFileSync, unlinkSync, chmodSync, existsSync, readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { SCRIPTS_DIR } from '../paths.js';
 
-const SCRIPTS_DIR = resolve(process.cwd(), 'scripts');
+// Ensure scripts directory exists
+mkdirSync(SCRIPTS_DIR, { recursive: true });
 
 // ─── Row shape ───────────────────────────────────────────────────────────────
 

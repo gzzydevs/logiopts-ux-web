@@ -1,5 +1,23 @@
 // Frontend types — mirrors server/types.ts (Solaar-based)
 
+// ─── Electron API (exposed via preload script) ──────────────────────────────
+
+interface ElectronAPI {
+  onSolaarStatus: (cb: (status: { running: boolean; installed: boolean }) => void) => void;
+  startSolaar: () => Promise<void>;
+  setAutostart: (enabled: boolean) => Promise<boolean>;
+  getAutostart: () => Promise<boolean>;
+  isElectron: true;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI;
+  }
+}
+
+// ─── Domain types ────────────────────────────────────────────────────────────
+
 export interface KnownDevice {
   displayName: string;
   solaarName: string;

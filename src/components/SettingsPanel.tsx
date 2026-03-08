@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
 import ScriptManager from './ScriptManager';
@@ -8,12 +8,18 @@ import './SettingsPanel.css';
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { windowWatcherActive, setWindowWatcherActive, scriptsEnabled, setScriptsEnabled } = useAppContext();
+    const [autostart, setAutostartState] = useState(false);
 
     useEffect(() => {
         fetch('/api/watcher/status')
             .then(res => res.json())
             .then(data => setWindowWatcherActive(data.active))
             .catch(console.error);
+
+        // Load autostart state when running in Electron
+        if (window.electronAPI) {
+            window.electronAPI.getAutostart().then(setAutostartState);
+        }
     }, [setWindowWatcherActive]);
 
     const toggleLanguage = () => {
@@ -32,6 +38,13 @@ export const SettingsPanel: React.FC = () => {
     const handleScriptsToggle = async (checked: boolean) => {
         setScriptsEnabled(checked);
         await setPreference('scriptsEnabled', String(checked));
+    };
+
+    const handleAutostartToggle = async (checked: boolean) => {
+        if (window.electronAPI) {
+            await window.electronAPI.setAutostart(checked);
+            setAutostartState(checked);
+        }
     };
 
     return (
@@ -78,6 +91,20 @@ export const SettingsPanel: React.FC = () => {
                     {i18n.language.toUpperCase()}
                 </button>
             </div>
+
+            {window.electronAPI && (
+                <div className="setting-item">
+                    <span>Autostart</span>
+                    <label className="switch">
+                        <input
+                            type="checkbox"
+                            checked={autostart}
+                            onChange={(e) => handleAutostartToggle(e.target.checked)}
+                        />
+                        <span className="slider"></span>
+                    </label>
+                </div>
+            )}
 
             <div className="setting-divider" />
             {scriptsEnabled && <ScriptManager />}
