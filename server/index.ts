@@ -11,7 +11,6 @@ import preferencesRouter from './routes/preferences.js';
 import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
-import { keyListener } from './services/keyListener.js';
 import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
 import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
@@ -320,15 +319,7 @@ windowWatcher.on('window-changed', async (windowClass: string) => {
 
 
 
-// Only start keyListener if scripts are enabled (avoids unnecessary key monitoring)
-if (getPreference('scriptsEnabled') === 'true') {
-  keyListener.start();
-}
-keyListener.on('keydown', async (macroKey) => {
-  const activeClass = windowWatcher.getCurrentClass();
-  const { handleMacroKey } = await import('./services/profileApplier.js');
-  await handleMacroKey(macroKey, activeClass);
-});
+// keyListener + handleMacroKey no longer needed — RunScript uses Solaar Execute directly
 
 } // end !MOCK_MODE
 

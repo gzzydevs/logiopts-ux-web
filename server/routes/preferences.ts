@@ -12,7 +12,6 @@ import {
     setPreference,
     getAllPreferences,
 } from '../db/repositories/preferences.repo';
-import { keyListener } from '../services/keyListener.js';
 
 const router = Router();
 
@@ -49,15 +48,6 @@ router.put('/preferences/:key', (req, res) => {
             return res.status(400).json({ ok: false, error: 'Missing value' });
         }
         setPreference(req.params.key, String(value));
-
-        // Toggle keyListener when scriptsEnabled changes
-        if (req.params.key === 'scriptsEnabled') {
-            if (value === 'true') {
-                keyListener.start();
-            } else {
-                keyListener.stop();
-            }
-        }
 
         res.json({ ok: true });
     } catch (err: unknown) {

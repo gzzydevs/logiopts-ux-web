@@ -168,14 +168,6 @@ export function testScript(id: string): Promise<{ output: string; exitCode: numb
   });
 }
 
-export function fetchMacroKeys(): Promise<{ available: string[]; inUse: Record<string, string> }> {
-  return api<{ available: string[]; inUse: Record<string, string> }>('/scripts/macro-keys');
-}
-
-export function fetchXinputStatus(): Promise<{ available: boolean; installHint: string; osId: string }> {
-  return api<{ available: boolean; installHint: string; osId: string }>('/scripts/xinput-status');
-}
-
 export function getPreference(key: string): Promise<string | null> {
   return fetch(`/api/preferences/${key}`)
     .then(r => r.json())

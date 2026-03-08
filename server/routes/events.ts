@@ -8,7 +8,6 @@
 import { Router } from 'express';
 import { storeEvents } from '../state/memory-store';
 import type { StoreEvent } from '../state/memory-store';
-import { xinputMissing } from '../services/keyListener';
 
 const router = Router();
 
@@ -29,14 +28,6 @@ router.get('/events', (req, res) => {
 
         const handler = (event: StoreEvent) => send(event);
         storeEvents.on('change', handler);
-
-        // Replay missed startup events to this new client
-        if (xinputMissing) {
-            send({
-                type: 'xinput-missing',
-                payload: { installHint: 'sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot' },
-            });
-        }
 
         req.on('close', () => {
             storeEvents.off('change', handler);

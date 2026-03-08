@@ -108,8 +108,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const toastIdRef = useRef(0);
     const profilesRef = useRef<Profile[]>([]);
     profilesRef.current = profiles;
-    const scriptsEnabledRef = useRef(false);
-    scriptsEnabledRef.current = scriptsEnabled;
 
     // ─── Toast management ──────────────────────────────────────────────────────
 
@@ -465,21 +463,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         es.addEventListener('config-applied', () => {
             // Could refresh data if needed
-        });
-
-        es.addEventListener('xinput-missing', () => {
-            if (!scriptsEnabledRef.current) return;
-            addToast({
-                type: 'warning',
-                message: '⚠️ xinput no está instalado — los scripts no se ejecutarán al presionar botones. Instalá xorg-x11-server-utils y reiniciá.',
-            });
-        });
-
-        es.addEventListener('script-error', (e) => {
-            try {
-                const { message } = JSON.parse(e.data);
-                addToast({ type: 'error', message: `Script error: ${message}` });
-            } catch { /* ignore */ }
         });
 
         return () => es.close();

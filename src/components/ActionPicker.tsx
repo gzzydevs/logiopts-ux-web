@@ -3,13 +3,8 @@ import type { SolaarAction, SystemAction, Script } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
 import ComboBuilder from './ComboBuilder';
 import ScriptEditor from './ScriptEditor';
-import { fetchScripts, fetchMacroKeys, createScript, updateScript, fetchXinputStatus } from '../hooks/useApi';
+import { fetchScripts, createScript, updateScript } from '../hooks/useApi';
 import { useAppContext } from '../context/AppContext';
-
-interface MacroKeyData {
-  available: string[];
-  inUse: Record<string, string>;
-}
 
 interface ActionPickerProps {
   value: SolaarAction;
@@ -28,18 +23,12 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
   const [scripts, setScripts] = useState<Script[]>([]);
-  const [macroKeys, setMacroKeys] = useState<MacroKeyData>({ available: [], inUse: {} });
   const [scriptEditorOpen, setScriptEditorOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | undefined>(undefined);
-  const [xinputMissing, setXinputMissing] = useState(false);
 
   useEffect(() => {
     if (value.type === 'RunScript' || value.type === 'None') {
       fetchScripts().then(setScripts).catch(console.error);
-      fetchMacroKeys().then(setMacroKeys).catch(console.error);
-    }
-    if (value.type === 'RunScript') {
-      fetchXinputStatus().then(s => setXinputMissing(!s.available)).catch(() => {});
     }
   }, [value.type]);
 
@@ -64,7 +53,7 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
         setCmdInput('');
         break;
       case 'RunScript':
-        onChange({ type: 'RunScript', scriptId: '', macroKey: macroKeys.available[0] || 'F1' });
+        onChange({ type: 'RunScript', scriptId: '' });
         break;
     }
   }
@@ -217,12 +206,6 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
 
       {actionType === 'RunScript' && value.type === 'RunScript' && (
         <div className="action-detail runscript-picker">
-          {xinputMissing && (
-            <div className="xinput-warning">
-              ⚠️ <strong>xinput no está instalado</strong> — los scripts no se van a ejecutar al presionar botones.<br />
-              <code>sudo rpm-ostree install xorg-x11-server-utils &amp;&amp; systemctl reboot</code>
-            </div>
-          )}
           <label className="action-field">
             <span>Script</span>
             <div className="script-select-row">
@@ -246,25 +229,6 @@ export default function ActionPicker({ value, onChange, systemActions, label, cu
                 {value.scriptId ? '✏️' : '+ Nuevo'}
               </button>
             </div>
-          </label>
-
-          <label className="action-field">
-            <span>Macro Key</span>
-            <select
-              value={value.macroKey}
-              onChange={e => onChange({ ...value, macroKey: e.target.value })}
-            >
-              {macroKeys.available.map(k => {
-                const usedBy = macroKeys.inUse[k];
-                const isOwnUse = currentCidKey && usedBy?.includes(currentCidKey);
-                const isBusy = usedBy && !isOwnUse;
-                return (
-                  <option key={k} value={k} disabled={!!isBusy}>
-                    {k}{isBusy ? ` (en uso: ${usedBy})` : ''}
-                  </option>
-                );
-              })}
-            </select>
           </label>
 
           {value.scriptId && (

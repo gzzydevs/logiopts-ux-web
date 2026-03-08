@@ -5,7 +5,6 @@
  */
 
 import { Router } from 'express';
-import { spawnSync } from 'node:child_process';
 import {
     createScript,
     updateScript,
@@ -15,8 +14,6 @@ import {
     seedFromDisk,
 } from '../db/repositories/script.repo';
 import { runScriptById } from '../services/scriptRunner';
-import { MACRO_KEY_POOL, USE_HOST_SPAWN_FOR_XINPUT } from '../services/keyListener.js';
-import { getAllProfiles } from './profiles';
 
 const router = Router();
 
@@ -28,76 +25,6 @@ router.get('/scripts', async (_req, res) => {
     try {
         const scripts = getAllScripts();
         res.json({ ok: true, data: scripts });
-    } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        res.status(500).json({ ok: false, error: msg });
-    }
-});
-
-// GET /api/scripts/xinput-status — check if xinput is available, with OS-specific install hint
-router.get('/scripts/xinput-status', (_req, res) => {
-    const checkCmd = USE_HOST_SPAWN_FOR_XINPUT ? 'flatpak-spawn' : 'which';
-    const checkArgs = USE_HOST_SPAWN_FOR_XINPUT ? ['--host', 'which', 'xinput'] : ['xinput'];
-    const result = spawnSync(checkCmd, checkArgs, { stdio: 'ignore' });
-    const available = result.status === 0;
-
-    // Detect OS from /etc/os-release
-    let osId = '';
-    let osIdLike = '';
-    try {
-        const { readFileSync } = require('node:fs');
-        const osRelease = readFileSync('/etc/os-release', 'utf-8');
-        const idMatch = osRelease.match(/^ID=["']?([^"'\n]+)["']?/m);
-        const idLikeMatch = osRelease.match(/^ID_LIKE=["']?([^"'\n]+)["']?/m);
-        osId = idMatch?.[1]?.toLowerCase() ?? '';
-        osIdLike = idLikeMatch?.[1]?.toLowerCase() ?? '';
-    } catch { /* ignore — non-Linux or no /etc/os-release */ }
-
-    const isRpmOstree = ['bazzite', 'silverblue', 'kinoite', 'coreos'].some(d => osId.includes(d) || osIdLike.includes(d));
-    const isFedora = osId.includes('fedora') || osIdLike.includes('fedora');
-    const isArch = osId.includes('arch') || osIdLike.includes('arch');
-    const isDebian = ['ubuntu', 'debian', 'mint', 'pop'].some(d => osId.includes(d) || osIdLike.includes(d));
-
-    let installHint: string;
-    if (isRpmOstree) {
-        installHint = 'sudo rpm-ostree install xorg-x11-server-utils && systemctl reboot';
-    } else if (isFedora) {
-        installHint = 'sudo dnf install xorg-x11-server-utils';
-    } else if (isArch) {
-        installHint = 'sudo pacman -S xorg-xinput';
-    } else if (isDebian) {
-        installHint = 'sudo apt-get install xinput';
-    } else {
-        installHint = 'Install xinput via your package manager (e.g. xorg-x11-server-utils or xinput)';
-    }
-
-    res.json({ ok: true, data: { available, installHint, osId } });
-});
-
-// GET /api/scripts/macro-keys — available macro keys and which are in use
-// (Must be before /scripts/:id to avoid param capture)
-router.get('/scripts/macro-keys', async (_req, res) => {
-    try {
-        const available = Object.keys(MACRO_KEY_POOL);
-        const inUse: Record<string, string> = {};
-
-        const profiles = await getAllProfiles();
-        for (const profile of profiles) {
-            for (const btn of profile.buttons) {
-                if (btn.gestureMode) {
-                    for (const dir in btn.gestures) {
-                        const action = btn.gestures[dir as keyof typeof btn.gestures];
-                        if (action.type === 'RunScript' && action.macroKey) {
-                            inUse[action.macroKey] = `${profile.name}:cid-${btn.cid}:${dir}`;
-                        }
-                    }
-                } else if (btn.simpleAction?.type === 'RunScript' && btn.simpleAction.macroKey) {
-                    inUse[btn.simpleAction.macroKey] = `${profile.name}:cid-${btn.cid}`;
-                }
-            }
-        }
-
-        res.json({ ok: true, data: { available, inUse } });
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         res.status(500).json({ ok: false, error: msg });
