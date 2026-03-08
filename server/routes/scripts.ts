@@ -13,6 +13,7 @@ import {
     deleteScript,
     seedFromDisk,
 } from '../db/repositories/script.repo';
+import { runScriptById } from '../services/scriptRunner';
 
 const router = Router();
 
@@ -90,6 +91,21 @@ router.delete('/scripts/:id', async (req, res) => {
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         res.status(500).json({ ok: false, error: msg });
+    }
+});
+
+// POST /api/scripts/:id/test — execute a script and return output
+router.post('/scripts/:id/test', async (req, res) => {
+    try {
+        const script = getScriptById(req.params.id);
+        if (!script) {
+            return res.status(404).json({ ok: false, error: 'Script not found' });
+        }
+        const output = await runScriptById(req.params.id);
+        res.json({ ok: true, data: { output, exitCode: 0 } });
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        res.json({ ok: true, data: { output: msg, exitCode: 1 } });
     }
 });
 

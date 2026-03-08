@@ -102,6 +102,13 @@ export const MousePreview: React.FC<MousePreviewProps> = ({ editMode = false }) 
                             <div className={classNames('node-label-container', `label-${labelSide}`)}>
                                 <div className="node-label">{btn.name}</div>
                             </div>
+                            {(() => {
+                                const cfg = buttons.find(b => b.cid === btn.cid);
+                                const action = cfg?.gestureMode ? undefined : cfg?.simpleAction;
+                                return action?.type === 'RunScript' ? (
+                                    <span className="button-badge script-badge" title="Script">⚡</span>
+                                ) : null;
+                            })()}
                         </div>
                     );
                 })}

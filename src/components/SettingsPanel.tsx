@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../context/AppContext';
+import ScriptManager from './ScriptManager';
+import { setPreference } from '../hooks/useApi';
 import './SettingsPanel.css';
 
 export const SettingsPanel: React.FC = () => {
     const { t, i18n } = useTranslation();
-    const { windowWatcherActive, setWindowWatcherActive } = useAppContext();
+    const { windowWatcherActive, setWindowWatcherActive, scriptsEnabled, setScriptsEnabled } = useAppContext();
     const [autostart, setAutostart] = useState(false);
 
     useEffect(() => {
@@ -36,6 +38,11 @@ export const SettingsPanel: React.FC = () => {
     const handleAutostartToggle = async (checked: boolean) => {
         setAutostart(checked);
         await window.electronAPI?.setAutostart(checked);
+    };
+
+    const handleScriptsToggle = async (checked: boolean) => {
+        setScriptsEnabled(checked);
+        await setPreference('scriptsEnabled', String(checked));
     };
 
     return (
@@ -69,6 +76,18 @@ export const SettingsPanel: React.FC = () => {
             )}
 
             <div className="setting-item">
+                <span>System Scripts</span>
+                <label className="switch">
+                    <input
+                        type="checkbox"
+                        checked={scriptsEnabled}
+                        onChange={(e) => handleScriptsToggle(e.target.checked)}
+                    />
+                    <span className="slider"></span>
+                </label>
+            </div>
+
+            <div className="setting-item">
                 <span>Language</span>
                 <button
                     onClick={toggleLanguage}
@@ -84,6 +103,9 @@ export const SettingsPanel: React.FC = () => {
                     {i18n.language.toUpperCase()}
                 </button>
             </div>
+
+            <div className="setting-divider" />
+            {scriptsEnabled && <ScriptManager />}
 
         </aside>
     );

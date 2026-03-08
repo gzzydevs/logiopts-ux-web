@@ -211,3 +211,24 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ═══════════════════════════════════════════════
+   SCRIPT BADGE
+   Shows ⚡ overlay on buttons with RunScript action.
+═══════════════════════════════════════════════ */
+
+.button-badge.script-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 0.6rem;
+    line-height: 1;
+    background: var(--accent);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}

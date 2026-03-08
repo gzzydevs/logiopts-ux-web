@@ -29,9 +29,6 @@ function actionToYaml(action: SolaarAction): any {
       return { 'mouse-scroll': [action.horizontal, action.vertical] };
     case 'Execute':
       return action.command;
-    case 'RunScript':
-      // From Solaar's perspective, running a script is just outputting the macroKey!
-      return [action.macroKey || 'F12'];
     default:
       return null;
   }
@@ -57,8 +54,7 @@ function buildRule(condition: SolaarRule['condition'], action: SolaarAction, com
   // Action
   const yamlAction = actionToYaml(action);
   if (yamlAction !== null) {
-    // For KeyPress or RunScript: wrap in KeyPress action type
-    if (action.type === 'KeyPress' || action.type === 'RunScript') {
+    if (action.type === 'KeyPress') {
       rule.push({ 'KeyPress': yamlAction });
     } else if (action.type === 'MouseClick') {
       rule.push({ 'MouseClick': [action.button, action.count] });

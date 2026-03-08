@@ -44,8 +44,8 @@ export default function App() {
 
         {appStatus === 'connected' && !isLayoutEditMode && (
           <div className="app-connected-layout">
-            <MousePreview />
             <SettingsPanel />
+            <MousePreview />
           </div>
         )}
 

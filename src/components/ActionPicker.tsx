@@ -1,21 +1,36 @@
-import { useState } from 'react';
-import type { SolaarAction, SystemAction } from '../types';
+import { useState, useEffect } from 'react';
+import type { SolaarAction, SystemAction, Script } from '../types';
 import KeyCapture, { displayKeysym } from './KeyCapture';
 import ComboBuilder from './ComboBuilder';
+import ScriptEditor from './ScriptEditor';
+import { fetchScripts, createScript, updateScript } from '../hooks/useApi';
+import { useAppContext } from '../context/AppContext';
 
 interface ActionPickerProps {
   value: SolaarAction;
   onChange: (action: SolaarAction) => void;
   systemActions: SystemAction[];
   label?: string;
+  /** Current button CID key, used to detect macro key conflicts */
+  currentCidKey?: string;
 }
 
-export default function ActionPicker({ value, onChange, systemActions, label }: ActionPickerProps) {
+export default function ActionPicker({ value, onChange, systemActions, label, currentCidKey }: ActionPickerProps) {
+  const { scriptsEnabled } = useAppContext();
   const [keyCapOpen, setKeyCapOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
   const [cmdInput, setCmdInput] = useState(
     value.type === 'Execute' ? value.command.join(' ') : ''
   );
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [scriptEditorOpen, setScriptEditorOpen] = useState(false);
+  const [editingScript, setEditingScript] = useState<Script | undefined>(undefined);
+
+  useEffect(() => {
+    if (value.type === 'RunScript' || value.type === 'None') {
+      fetchScripts().then(setScripts).catch(console.error);
+    }
+  }, [value.type]);
 
   const actionType = value.type;
 
@@ -36,6 +51,9 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
       case 'Execute':
         onChange({ type: 'Execute', command: [] });
         setCmdInput('');
+        break;
+      case 'RunScript':
+        onChange({ type: 'RunScript', scriptId: '' });
         break;
     }
   }
@@ -77,6 +95,7 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
           <option value="MouseClick">Mouse Click</option>
           <option value="MouseScroll">Mouse Scroll</option>
           <option value="Execute">Execute Command</option>
+          {scriptsEnabled && <option value="RunScript">Run Script</option>}
         </select>
 
         {/* Quick system action dropdown */}
@@ -185,6 +204,68 @@ export default function ActionPicker({ value, onChange, systemActions, label }: 
         </div>
       )}
 
+      {actionType === 'RunScript' && value.type === 'RunScript' && (
+        <div className="action-detail runscript-picker">
+          <label className="action-field">
+            <span>Script</span>
+            <div className="script-select-row">
+              <select
+                value={value.scriptId}
+                onChange={e => onChange({ ...value, scriptId: e.target.value })}
+              >
+                <option value="">-- Seleccionar script --</option>
+                {scripts.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-small btn-secondary"
+                onClick={() => {
+                  const s = scripts.find(sc => sc.id === value.scriptId);
+                  setEditingScript(s);
+                  setScriptEditorOpen(true);
+                }}
+              >
+                {value.scriptId ? '✏️' : '+ Nuevo'}
+              </button>
+            </div>
+          </label>
+
+          {value.scriptId && (
+            <div className="script-preview-snippet">
+              {scripts.find(s => s.id === value.scriptId)?.content.split('\n').slice(0, 3).join('\n')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {scriptEditorOpen && (
+        <ScriptEditor
+          script={editingScript}
+          onClose={() => { setScriptEditorOpen(false); setEditingScript(undefined); }}
+          onSave={async (data) => {
+            try {
+              let saved: Script;
+              if (editingScript) {
+                saved = await updateScript(editingScript.id, data);
+              } else {
+                saved = await createScript(data);
+              }
+              setScriptEditorOpen(false);
+              setEditingScript(undefined);
+              const updated = await fetchScripts();
+              setScripts(updated);
+              // Auto-select the newly created/updated script
+              if (value.type === 'RunScript') {
+                onChange({ ...value, scriptId: saved.id });
+              }
+            } catch (err) {
+              console.error('Failed to save script:', err);
+            }
+          }}
+        />
+      )}
+
       {/* Current value display */}
       {actionType !== 'None' && (
         <div className="action-preview">
@@ -202,6 +283,6 @@ function formatAction(a: SolaarAction): string {
     case 'MouseClick': return `Mouse ${a.button} ${a.count === 'click' ? 'click' : `×${a.count}`}`;
     case 'MouseScroll': return `Scroll: H=${a.horizontal} V=${a.vertical}`;
     case 'Execute': return `Run: ${a.command.join(' ')}`;
-    case 'RunScript': return `Script: ${a.script}`;
+    case 'RunScript': return `Script`;
   }
 }
