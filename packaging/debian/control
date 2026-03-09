@@ -3,9 +3,8 @@ Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: all
-Depends: nodejs (>= 18)
-Recommends: solaar
-Maintainer: LogiTux Maintainer <maintainer@logitux.dev>
+Depends: nodejs (>= 24), solaar
+Maintainer: gzzy.dev <gzzy.dev@gmail.com>
 Description: Logitech device configuration for Linux
  Local web app for configuring Logitech devices.
  Starts Express on localhost:3001 and opens the browser.

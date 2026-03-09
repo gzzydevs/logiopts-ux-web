@@ -5,7 +5,7 @@
  * (scripts/ directory) so scriptRunner.ts can execute them.
  */
 
-import db from '../index.js';
+import db from '../index';
 import { writeFileSync, unlinkSync, chmodSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 

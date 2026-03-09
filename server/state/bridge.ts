@@ -12,17 +12,17 @@ import type {
     ButtonConfig,
     SolaarAction,
     GestureDirection as UIDirection,
-} from '../types.js';
+} from '../types';
 
-import { CID_MAP } from '../services/deviceDatabase.js';
-import { getScriptById } from '../db/repositories/script.repo.js';
+import { CID_MAP } from '../services/deviceDatabase';
+import { getScriptById } from '../db/repositories/script.repo';
 
 import type {
     ProfileConfig,
     ButtonMapping,
     Macro,
     GestureDirection as ParserDirection,
-} from '../solaar/schema.js';
+} from '../solaar/schema';
 
 // ─── Direction mapping ───────────────────────────────────────────────────────
 

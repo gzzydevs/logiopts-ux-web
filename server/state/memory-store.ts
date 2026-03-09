@@ -6,17 +6,17 @@
  */
 
 import EventEmitter from 'node:events';
-import type { KnownDevice, Profile, ButtonConfig } from '../types.js';
-import type { ProfileConfig } from '../solaar/schema.js';
-import { jsonToSolaarYaml } from '../solaar/index.js';
-import { buttonConfigsToProfileConfig } from './bridge.js';
-import { getAllDevices } from '../db/repositories/device.repo.js';
-import { getAllProfiles as dbGetAllProfiles } from '../db/repositories/profile.repo.js';
-import { getAllConfigs, saveConfig as dbSaveConfig } from '../db/repositories/config.repo.js';
-import { getAllScripts } from '../db/repositories/script.repo.js';
-import { getAllPreferences } from '../db/repositories/preferences.repo.js';
-import type { Config } from '../db/repositories/config.repo.js';
-import type { Script } from '../db/repositories/script.repo.js';
+import type { KnownDevice, Profile, ButtonConfig } from '../types';
+import type { ProfileConfig } from '../solaar/schema';
+import { jsonToSolaarYaml } from '../solaar/index';
+import { buttonConfigsToProfileConfig } from './bridge';
+import { getAllDevices } from '../db/repositories/device.repo';
+import { getAllProfiles as dbGetAllProfiles } from '../db/repositories/profile.repo';
+import { getAllConfigs, saveConfig as dbSaveConfig } from '../db/repositories/config.repo';
+import { getAllScripts } from '../db/repositories/script.repo';
+import { getAllPreferences } from '../db/repositories/preferences.repo';
+import type { Config } from '../db/repositories/config.repo';
+import type { Script } from '../db/repositories/script.repo';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { USE_HOST_SPAWN } from './solaarDetector.js';
-import { getScriptById } from '../db/repositories/script.repo.js';
+import { USE_HOST_SPAWN } from './solaarDetector';
+import { getScriptById } from '../db/repositories/script.repo';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SCRIPTS_DIR = resolve(__dirname, '../../scripts');

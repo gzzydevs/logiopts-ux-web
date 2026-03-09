@@ -9,7 +9,7 @@
     "dev:cloud": "concurrently \"npm run dev:cloud:server\" \"npm run dev:client\"",
     "dev:cloud:server": "MOCK_MODE=true LOGITUX_DEV=true tsx watch server/index.ts",
     "build": "vite build",
-    "build:server": "tsc -p tsconfig.server.json && cp server/db/schema.sql dist-server/db/schema.sql",
+    "build:server": "tsc -p tsconfig.server.json && node scripts/fix-esm-imports.mjs && cp server/db/schema.sql dist-server/db/schema.sql",
     "build:all": "npm run build && npm run build:server",
     "build:tarball": "bash packaging/build-tarball.sh",
     "build:rpm": "bash packaging/build-rpm.sh",

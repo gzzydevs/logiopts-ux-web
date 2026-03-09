@@ -11,11 +11,11 @@
  */
 
 // Parser
-export { jsonToSolaarYaml, solaarYamlToJson, normalizeConfig } from './parser.js';
+export { jsonToSolaarYaml, solaarYamlToJson, normalizeConfig } from './parser';
 
 // Validation
-export { validateProfileConfig, validateSolaarYaml } from './validator.js';
-export type { ValidationError, ValidationResult } from './validator.js';
+export { validateProfileConfig, validateSolaarYaml } from './validator';
+export type { ValidationError, ValidationResult } from './validator';
 
 // Schema types
 export type {
@@ -24,5 +24,5 @@ export type {
     ProfileConfig,
     SolaarRuleDoc,
     GestureDirection,
-} from './schema.js';
-export { ALL_DIRECTIONS, isValidKeysym } from './schema.js';
+} from './schema';
+export { ALL_DIRECTIONS, isValidKeysym } from './schema';

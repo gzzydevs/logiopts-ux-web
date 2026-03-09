@@ -7,9 +7,9 @@
  * Used by server/mock/routes.ts when MOCK_MODE=true.
  */
 
-import type { KnownDevice, KnownButton, Profile, ButtonConfig } from '../types.js';
-import type { Script } from '../db/repositories/script.repo.js';
-import { SYSTEM_ACTIONS } from '../services/deviceDatabase.js';
+import type { KnownDevice, KnownButton, Profile, ButtonConfig } from '../types';
+import type { Script } from '../db/repositories/script.repo';
+import { SYSTEM_ACTIONS } from '../services/deviceDatabase';
 
 export { SYSTEM_ACTIONS as MOCK_SYSTEM_ACTIONS };
 

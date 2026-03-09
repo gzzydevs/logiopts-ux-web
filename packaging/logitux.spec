@@ -6,8 +6,8 @@ License:        MIT
 URL:            https://github.com/gzzydevs/logiopts-ux-web
 Source0:        %{name}-%{version}.tar.gz
 
-Requires:       nodejs >= 18
-Recommends:     solaar
+Requires:       nodejs >= 24
+Requires:       solaar
 BuildArch:      noarch
 
 # No compilation needed — tarball is pre-built
@@ -48,5 +48,5 @@ install -m 644 logitux.desktop %{buildroot}/%{_datadir}/applications/logitux.des
 %{_datadir}/applications/logitux.desktop
 
 %changelog
-* Sun Mar 08 2026 LogiTux Maintainer <maintainer@logitux.dev> - 1.0.0-1
+* Sun Mar 08 2026 gzzy.dev <gzzy.dev@gmail.com> - 1.0.0-1
 - Initial release

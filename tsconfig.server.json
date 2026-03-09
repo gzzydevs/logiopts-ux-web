@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "dist-server",
     "rootDir": "server",
     "strict": true,
@@ -11,7 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "isolatedModules": true
   },
   "include": ["server/**/*.ts"],
   "exclude": ["server/**/__tests__/**"]

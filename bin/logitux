@@ -7,7 +7,8 @@ cd "$SCRIPT_DIR"
 
 PORT="${PORT:-3001}"
 
-# Open browser when the server is ready (in background)
+# Wait for the server to be ready in a background subshell, then open the browser.
+# The server is started below with `exec node` — curl just polls until it responds.
 if [[ "${1:-}" != "--no-browser" ]]; then
   (
     for i in $(seq 1 30); do

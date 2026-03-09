@@ -1,8 +1,8 @@
-import { detectSolaar } from './solaarDetector.js';
-import { jsonToSolaarYaml } from '../solaar/index.js';
-import { buttonConfigsToProfileConfig } from '../state/bridge.js';
-import { runScript } from './scriptRunner.js';
-import type { Profile } from '../types.js';
+import { detectSolaar } from './solaarDetector';
+import { jsonToSolaarYaml } from '../solaar/index';
+import { buttonConfigsToProfileConfig } from '../state/bridge';
+import { runScript } from './scriptRunner';
+import type { Profile } from '../types';
 
 export async function applyProfileToSolaar(profile: Profile): Promise<boolean> {
     const status = await detectSolaar();

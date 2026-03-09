@@ -5,9 +5,9 @@
  * Integrates with the Solaar parser to generate YAML on save.
  */
 
-import db from '../index.js';
-import { jsonToSolaarYaml } from '../../solaar/index.js';
-import type { ProfileConfig } from '../../solaar/schema.js';
+import db from '../index';
+import { jsonToSolaarYaml } from '../../solaar/index';
+import type { ProfileConfig } from '../../solaar/schema';
 
 // ─── Row shape ───────────────────────────────────────────────────────────────
 

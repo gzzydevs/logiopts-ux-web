@@ -22,7 +22,8 @@ import {
     ALL_DIRECTIONS,
     SOLAAR_DIRECTION_MAP,
     REVERSE_DIRECTION_MAP,
-} from './schema.js';
+} from './schema';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // Solaar trigger events that should NOT be treated as keys

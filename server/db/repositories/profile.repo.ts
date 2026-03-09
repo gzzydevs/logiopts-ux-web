@@ -4,8 +4,8 @@
  * Stores ButtonConfig[] and windowClasses[] as JSON TEXT columns.
  */
 
-import db from '../index.js';
-import type { Profile, ButtonConfig } from '../../types.js';
+import db from '../index';
+import type { Profile, ButtonConfig } from '../../types';
 
 // ─── Row shape ───────────────────────────────────────────────────────────────
 

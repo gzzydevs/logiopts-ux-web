@@ -5,8 +5,8 @@
  * in the `metadata` column.
  */
 
-import db from '../index.js';
-import type { KnownDevice, KnownButton } from '../../types.js';
+import db from '../index';
+import type { KnownDevice, KnownButton } from '../../types';
 
 // ─── Row shape ───────────────────────────────────────────────────────────────
 

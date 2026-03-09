@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { constants } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import type { SolaarStatus, SolaarInstallType } from '../types.js';
+import type { SolaarStatus, SolaarInstallType } from '../types';
 import { existsSync } from 'node:fs';
 
 const HOME = homedir();

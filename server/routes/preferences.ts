@@ -10,13 +10,16 @@
 
 import { Router } from 'express';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
-import { mkdirSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { mkdirSync, copyFileSync, existsSync, unlinkSync } from 'node:fs';
 import {
     getPreference,
     setPreference,
     getAllPreferences,
-} from '../db/repositories/preferences.repo.js';
+} from '../db/repositories/preferences.repo';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const router = Router();
 
@@ -51,15 +54,8 @@ router.post('/preferences/autostart', (req, res) => {
 
         if (enabled) {
             mkdirSync(dir, { recursive: true });
-            writeFileSync(file, `[Desktop Entry]
-Type=Application
-Name=LogiTux
-Exec=/opt/logitux/bin/logitux --no-browser
-Terminal=false
-Hidden=false
-X-GNOME-Autostart-enabled=true
-StartupNotify=false
-`);
+            const source = resolve(__dirname, '../../packaging/logitux-autostart.desktop');
+            copyFileSync(source, file);
         } else {
             if (existsSync(file)) unlinkSync(file);
         }
