@@ -6,8 +6,8 @@
  */
 
 import { Router } from 'express';
-import { storeEvents } from '../state/memory-store';
-import type { StoreEvent } from '../state/memory-store';
+import { storeEvents } from '../state/memory-store.js';
+import type { StoreEvent } from '../state/memory-store.js';
 
 const router = Router();
 

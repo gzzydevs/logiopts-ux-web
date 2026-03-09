@@ -12,7 +12,7 @@ import eventsRouter from './routes/events.js';
 import { windowWatcher } from './services/windowWatcher.js';
 import { applyProfileToSolaar } from './services/profileApplier.js';
 import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
-import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
+import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile, launchSolaar } from './services/solaarDetector.js';
 import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
 import { upsertDevice } from './db/repositories/device.repo.js';
 import { createProfile } from './db/repositories/profile.repo.js';
@@ -261,10 +261,36 @@ if (watcherPref === 'true') {
   console.log('[WindowWatcher] Auto-started from preferences');
 }
 
+// Solaar Status API — detect installation + running state
+app.get('/api/solaar/status', async (_req, res) => {
+  try {
+    const status = await detectSolaar();
+    res.json({ ok: true, data: status });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+// Solaar Start API — launch Solaar minimized
+app.post('/api/solaar/start', async (_req, res) => {
+  try {
+    const status = await detectSolaar();
+    if (!status.installed) {
+      return res.status(400).json({ ok: false, error: 'Solaar is not installed' });
+    }
+    await launchSolaar(status.installType);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
 } // end !MOCK_MODE (bootstrap + watcher API routes)
 
 // Serve static React build in production
-const distPath = resolve(__dirname, '../dist');
+const distPath = process.env.LOGITUX_DIST_PATH || resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 app.get('/{*path}', (_req, res) => {
   res.sendFile(resolve(distPath, 'index.html'));

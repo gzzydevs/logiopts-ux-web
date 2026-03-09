@@ -5,18 +5,18 @@
  */
 
 import { Router } from 'express';
-import type { Profile } from '../types';
+import type { Profile } from '../types.js';
 import {
   createProfile as dbCreate,
   updateProfile as dbUpdate,
   getAllProfiles as dbGetAll,
   getProfileById as dbGetById,
   deleteProfile as dbDelete,
-} from '../db/repositories/profile.repo';
+} from '../db/repositories/profile.repo.js';
 import {
   updateConfigFromUI,
   persistConfig,
-} from '../state/memory-store';
+} from '../state/memory-store.js';
 
 const router = Router();
 

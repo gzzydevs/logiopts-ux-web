@@ -13,8 +13,7 @@ import {
     type GestureDirection,
     ALL_DIRECTIONS,
     isValidKeysym,
-} from './schema';
-
+} from './schema.js';
 // ─── Validation types ────────────────────────────────────────────────────────
 
 export interface ValidationError {

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the installation root (one level up from bin/)
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$SCRIPT_DIR"
+
+PORT="${PORT:-3001}"
+
+# Open browser when the server is ready (in background)
+if [[ "${1:-}" != "--no-browser" ]]; then
+  (
+    for i in $(seq 1 30); do
+      if curl -sf "http://localhost:$PORT" > /dev/null 2>&1; then
+        xdg-open "http://localhost:$PORT" 2>/dev/null &
+        break
+      fi
+      sleep 0.3
+    done
+  ) &
+fi
+
+# Start the server (blocks — Ctrl+C to stop)
+exec node dist-server/index.js

@@ -4,7 +4,7 @@
  * Stores settings like windowWatcherEnabled, lastActiveProfileId, locale.
  */
 
-import db from '../index';
+import db from '../index.js';
 
 // ─── Prepared statements ─────────────────────────────────────────────────────
 

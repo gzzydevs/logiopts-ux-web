@@ -12,8 +12,8 @@ import {
     getScriptById,
     deleteScript,
     seedFromDisk,
-} from '../db/repositories/script.repo';
-import { runScriptById } from '../services/scriptRunner';
+} from '../db/repositories/script.repo.js';
+import { runScriptById } from '../services/scriptRunner.js';
 
 const router = Router();
 
