@@ -22,13 +22,16 @@ if [ ! -f "/tmp/${NODE_TAR}" ]; then
   echo "Downloading Node.js v${NODE_VERSION} (linux-x64)..."
   curl -fSL -o "/tmp/${NODE_TAR}" "$NODE_URL"
 fi
-tar -xJf "/tmp/${NODE_TAR}" -C /tmp "node-v${NODE_VERSION}-linux-x64/bin/node"
+tar -xJf "/tmp/${NODE_TAR}" -C /tmp "node-v${NODE_VERSION}-linux-x64/bin/node" "node-v${NODE_VERSION}-linux-x64/bin/npm" "node-v${NODE_VERSION}-linux-x64/lib/node_modules/npm"
 sudo cp "/tmp/node-v${NODE_VERSION}-linux-x64/bin/node" "$INSTALL_DIR/bin/node"
+sudo cp "/tmp/node-v${NODE_VERSION}-linux-x64/bin/npm" "$INSTALL_DIR/bin/npm"
+sudo cp -r "/tmp/node-v${NODE_VERSION}-linux-x64/lib" "$INSTALL_DIR/lib"
 sudo chmod +x "$INSTALL_DIR/bin/node"
+sudo chmod +x "$INSTALL_DIR/bin/npm"
 rm -rf "/tmp/node-v${NODE_VERSION}-linux-x64"
 
-# Install production-only dependencies in the target directory
-sudo bash -c "cd $INSTALL_DIR && $INSTALL_DIR/bin/node $(which npm) install --omit=dev --ignore-scripts"
+# Install production-only dependencies using the bundled Node and npm
+sudo bash -c "cd $INSTALL_DIR && $INSTALL_DIR/bin/node $INSTALL_DIR/bin/npm install --omit=dev --ignore-scripts"
 
 # Launcher
 sudo cp bin/logitux "$INSTALL_DIR/bin/logitux"

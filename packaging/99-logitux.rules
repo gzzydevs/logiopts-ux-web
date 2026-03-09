@@ -1,4 +1,4 @@
 # udev rules for Logitech HID++ devices — allow non-root access
 # Logitech USB receivers (Unifying, Bolt, Nano)
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", MODE="0666"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", GROUP="plugdev", MODE="0660"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", GROUP="plugdev", MODE="0660"
