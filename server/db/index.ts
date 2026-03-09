@@ -33,9 +33,6 @@ mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = resolve(DATA_DIR, 'logitux.db');
 
-// Ensure data directory exists
-mkdirSync(dirname(DB_PATH), { recursive: true });
-
 const db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrent read performance
