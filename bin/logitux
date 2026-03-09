@@ -5,10 +5,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$SCRIPT_DIR"
 
+# Use the bundled Node binary shipped inside the package
+NODE="$SCRIPT_DIR/bin/node"
+
 PORT="${PORT:-3001}"
 
 # Wait for the server to be ready in a background subshell, then open the browser.
-# The server is started below with `exec node` — curl just polls until it responds.
+# The server is started below with `exec $NODE` — curl just polls until it responds.
 if [[ "${1:-}" != "--no-browser" ]]; then
   (
     for i in $(seq 1 30); do
@@ -21,5 +24,5 @@ if [[ "${1:-}" != "--no-browser" ]]; then
   ) &
 fi
 
-# Start the server (blocks — Ctrl+C to stop)
-exec node dist-server/index.js
+# Start the server using the bundled Node (blocks — Ctrl+C to stop)
+exec "$NODE" dist-server/index.js
