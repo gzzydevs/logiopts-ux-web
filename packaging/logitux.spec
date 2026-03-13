@@ -9,6 +9,10 @@ Source0:        %{name}-%{version}.tar.gz
 Requires:       solaar
 ExclusiveArch:  x86_64
 
+# gtk-update-icon-cache and udevadm are needed in post-install hooks
+Requires(post):   systemd
+Requires(postun): systemd
+
 # No compilation needed — tarball is pre-built with bundled Node.js
 %global debug_package %{nil}
 
@@ -25,7 +29,7 @@ mkdir -p %{buildroot}/opt/%{name}/{bin,dist,dist-server,node_modules}
 mkdir -p %{buildroot}/%{_bindir}
 mkdir -p %{buildroot}/%{_datadir}/applications
 mkdir -p %{buildroot}/%{_datadir}/icons/hicolor/256x256/apps
-mkdir -p %{buildroot}/lib/udev/rules.d
+mkdir -p %{buildroot}%{_prefix}/lib/udev/rules.d
 
 # Copy artifacts (includes bundled Node binary at bin/node)
 cp -r dist/* %{buildroot}/opt/%{name}/dist/
@@ -45,13 +49,26 @@ install -m 644 logitux.desktop %{buildroot}/%{_datadir}/applications/logitux.des
 [ -f logitux.png ] && install -m 644 logitux.png %{buildroot}/%{_datadir}/icons/hicolor/256x256/apps/logitux.png || true
 
 # udev rules for Logitech HID++ devices
-[ -f 99-logitux.rules ] && install -m 644 99-logitux.rules %{buildroot}/lib/udev/rules.d/99-logitux.rules || true
+[ -f 99-logitux.rules ] && install -m 644 99-logitux.rules %{buildroot}%{_prefix}/lib/udev/rules.d/99-logitux.rules || true
+
+%post
+/usr/bin/udevadm control --reload-rules 2>/dev/null || :
+/usr/bin/udevadm trigger --subsystem-match=hidraw 2>/dev/null || :
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+  /usr/bin/gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor 2>/dev/null || :
+fi
+
+%postun
+/usr/bin/udevadm control --reload-rules 2>/dev/null || :
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+  /usr/bin/gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor 2>/dev/null || :
+fi
 
 %files
 /opt/%{name}/
 %{_bindir}/logitux
 %{_datadir}/applications/logitux.desktop
-/lib/udev/rules.d/99-logitux.rules
+%{_prefix}/lib/udev/rules.d/99-logitux.rules
 
 %changelog
 * Sun Mar 09 2026 gzzy.dev <gzzy.dev@gmail.com> - 1.0.0-2
