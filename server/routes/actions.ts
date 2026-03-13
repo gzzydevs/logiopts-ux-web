@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { runScript } from '../services/scriptRunner.js';
+import { runScript } from '../services/scriptRunner';
 
 const router = Router();
 

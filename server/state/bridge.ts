@@ -14,8 +14,8 @@ import type {
     GestureDirection as UIDirection,
 } from '../types';
 
-import { CID_MAP } from '../services/deviceDatabase.js';
-import { getScriptById } from '../db/repositories/script.repo.js';
+import { CID_MAP } from '../services/deviceDatabase';
+import { getScriptById } from '../db/repositories/script.repo';
 
 import type {
     ProfileConfig,

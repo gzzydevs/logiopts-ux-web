@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve the installation root (one level up from bin/).
+# Use readlink -f to follow symlinks (e.g. /usr/local/bin/logitux -> /opt/logitux/bin/logitux).
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+INSTALL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$INSTALL_DIR"
+
+# Use the bundled Node binary shipped inside the package
+NODE="$INSTALL_DIR/bin/node"
+
+PORT="${PORT:-3001}"
+
+# Wait for the server to be ready in a background subshell, then open the browser.
+# The server is started below with `exec $NODE` — curl just polls until it responds.
+if [[ "${1:-}" != "--no-browser" ]]; then
+  (
+    for i in $(seq 1 30); do
+      if curl -sf "http://localhost:$PORT" > /dev/null 2>&1; then
+        xdg-open "http://localhost:$PORT" 2>/dev/null &
+        break
+      fi
+      sleep 0.3
+    done
+  ) &
+fi
+
+# Start the server using the bundled Node (blocks — Ctrl+C to stop)
+exec "$NODE" dist-server/index.js

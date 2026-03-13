@@ -2,7 +2,7 @@
  * Local device database — enriches auto-detected data from `solaar show`
  * with SVG positions, display names, and known CID→button mappings.
  */
-import type { KnownDevice, KnownButton, SystemAction } from '../types.js';
+import type { KnownDevice, KnownButton, SystemAction } from '../types';
 
 // ─── Known CID Map (Logitech HID++ CIDs, decimal) ──────────────────────────
 

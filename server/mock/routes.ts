@@ -18,14 +18,14 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { Profile, KnownDevice, ButtonConfig } from '../types.js';
-import type { Script } from '../db/repositories/script.repo.js';
+import type { Profile, KnownDevice, ButtonConfig } from '../types';
+import type { Script } from '../db/repositories/script.repo';
 import {
     MOCK_DEVICE,
     MOCK_PROFILES,
     MOCK_SCRIPTS,
     MOCK_SYSTEM_ACTIONS,
-} from './data.js';
+} from './data';
 
 const router = Router();
 

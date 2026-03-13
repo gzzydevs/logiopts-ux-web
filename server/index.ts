@@ -1,28 +1,28 @@
 import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import buttonsRouter from './routes/buttons.js';
-import configRouter from './routes/config.js';
-import profilesRouter, { getAllProfiles } from './routes/profiles.js';
-import actionsRouter from './routes/actions.js';
-import scriptsRouter from './routes/scripts.js';
-import mockRouter from './mock/routes.js';
-import preferencesRouter from './routes/preferences.js';
-import eventsRouter from './routes/events.js';
-import { windowWatcher } from './services/windowWatcher.js';
-import { applyProfileToSolaar } from './services/profileApplier.js';
-import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store.js';
-import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile } from './services/solaarDetector.js';
-import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase.js';
-import { upsertDevice } from './db/repositories/device.repo.js';
-import { createProfile } from './db/repositories/profile.repo.js';
-import { getPreference, setPreference } from './db/repositories/preferences.repo.js';
-import { solaarYamlToJson } from './solaar/index.js';
-import { profileConfigToButtonConfigs } from './state/bridge.js';
-import type { KnownDevice, KnownButton, ButtonConfig } from './types.js';
+import buttonsRouter from './routes/buttons';
+import configRouter from './routes/config';
+import profilesRouter, { getAllProfiles } from './routes/profiles';
+import actionsRouter from './routes/actions';
+import scriptsRouter from './routes/scripts';
+import mockRouter from './mock/routes';
+import preferencesRouter from './routes/preferences';
+import eventsRouter from './routes/events';
+import { windowWatcher } from './services/windowWatcher';
+import { applyProfileToSolaar } from './services/profileApplier';
+import { bootstrap, setCurrentDevice, setActiveProfile, getActiveProfileId, emitStoreEvent } from './state/memory-store';
+import { detectSolaar, getSolaarShowCommand, hostShell, parseSolaarShow, hostReadFile, launchSolaar } from './services/solaarDetector';
+import { CID_MAP, KNOWN_DEVICES } from './services/deviceDatabase';
+import { upsertDevice } from './db/repositories/device.repo';
+import { createProfile } from './db/repositories/profile.repo';
+import { getPreference, setPreference } from './db/repositories/preferences.repo';
+import { solaarYamlToJson } from './solaar/index';
+import { profileConfigToButtonConfigs } from './state/bridge';
+import type { KnownDevice, KnownButton, ButtonConfig } from './types';
 
 // Initialize DB (runs schema.sql on first boot)
-import './db/index.js';
+import './db/index';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -261,10 +261,36 @@ if (watcherPref === 'true') {
   console.log('[WindowWatcher] Auto-started from preferences');
 }
 
+// Solaar Status API — detect installation + running state
+app.get('/api/solaar/status', async (_req, res) => {
+  try {
+    const status = await detectSolaar();
+    res.json({ ok: true, data: status });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+// Solaar Start API — launch Solaar minimized
+app.post('/api/solaar/start', async (_req, res) => {
+  try {
+    const status = await detectSolaar();
+    if (!status.installed) {
+      return res.status(400).json({ ok: false, error: 'Solaar is not installed' });
+    }
+    await launchSolaar(status.installType);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ ok: false, error: msg });
+  }
+});
+
 } // end !MOCK_MODE (bootstrap + watcher API routes)
 
 // Serve static React build in production
-const distPath = resolve(__dirname, '../dist');
+const distPath = process.env.LOGITUX_DIST_PATH || resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 app.get('/{*path}', (_req, res) => {
   res.sendFile(resolve(distPath, 'index.html'));
