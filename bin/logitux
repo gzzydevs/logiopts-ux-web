@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve the installation root (one level up from bin/)
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$SCRIPT_DIR"
+# Resolve the installation root (one level up from bin/).
+# Use readlink -f to follow symlinks (e.g. /usr/local/bin/logitux -> /opt/logitux/bin/logitux).
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+INSTALL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$INSTALL_DIR"
 
 # Use the bundled Node binary shipped inside the package
-NODE="$SCRIPT_DIR/bin/node"
+NODE="$INSTALL_DIR/bin/node"
 
 PORT="${PORT:-3001}"
 

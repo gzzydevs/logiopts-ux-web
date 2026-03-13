@@ -19,11 +19,14 @@ function fixImports(dir) {
       fixImports(full);
     } else if (full.endsWith('.js')) {
       let content = readFileSync(full, 'utf8');
-      // Add .js to relative imports/exports that don't already have a file extension
+      // Add .js to relative imports/exports that don't already have a JS file extension.
+      // Only skip paths that already end with a real module extension (.js, .mjs, .cjs, .json).
+      // Paths like device.repo, profile.repo, etc. are NOT file extensions and must get .js appended.
+      // Handles: from './x', import('./x'), import './x' (side-effect imports)
       content = content.replace(
-        /((?:from|import\()\s*['"])(\.\.?\/[^'"]+?)(['"])/g,
+        /((?:from|import\(|import)\s*['"])(\.\.?\/[^'"]+?)(['"])/g,
         (match, prefix, path, suffix) => {
-          if (/\.\w+$/.test(path)) return match;
+          if (/\.(js|mjs|cjs|json)$/.test(path)) return match;
           return `${prefix}${path}.js${suffix}`;
         }
       );
