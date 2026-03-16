@@ -5,14 +5,14 @@
  * POST /api/config/reset — reset to defaults
  */
 import { Router } from 'express';
-import { detectSolaar, hostReadFile } from '../services/solaarDetector.js';
-import { parseRulesYaml } from '../services/configGenerator.js';
-import { jsonToSolaarYaml } from '../solaar/index.js';
-import { buttonConfigsToProfileConfig } from '../state/bridge.js';
-import { saveConfig as dbSaveConfig } from '../db/repositories/config.repo.js';
-import { updateProfile } from '../db/repositories/profile.repo.js';
-import { runScript } from '../services/scriptRunner.js';
-import type { SolaarConfig, ButtonConfig } from '../types.js';
+import { detectSolaar, hostReadFile } from '../services/solaarDetector';
+import { parseRulesYaml } from '../services/configGenerator';
+import { jsonToSolaarYaml } from '../solaar/index';
+import { buttonConfigsToProfileConfig } from '../state/bridge';
+import { saveConfig as dbSaveConfig } from '../db/repositories/config.repo';
+import { updateProfile } from '../db/repositories/profile.repo';
+import { runScript } from '../services/scriptRunner';
+import type { SolaarConfig, ButtonConfig } from '../types';
 
 const router = Router();
 

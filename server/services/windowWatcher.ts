@@ -1,5 +1,5 @@
 import EventEmitter from 'node:events';
-import { hostShell } from './solaarDetector.js';
+import { hostShell } from './solaarDetector';
 
 export class WindowWatcher extends EventEmitter {
     private interval: NodeJS.Timeout | null = null;

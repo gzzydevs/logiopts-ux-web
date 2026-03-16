@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LogiTux
+Exec=/opt/logitux/bin/logitux --no-browser
+Terminal=false
+Hidden=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false

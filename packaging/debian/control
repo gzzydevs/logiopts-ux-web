@@ -1,0 +1,11 @@
+Package: logitux
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: solaar
+Maintainer: gzzy.dev <gzzy.dev@gmail.com>
+Description: Logitech device configuration for Linux
+ Local web app for configuring Logitech devices.
+ Bundles Node.js runtime — no external dependencies besides solaar.
+ Starts Express on localhost:3001 and opens the browser.

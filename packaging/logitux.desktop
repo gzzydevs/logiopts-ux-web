@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=LogiTux
+Comment=Logitech device configuration for Linux
+Exec=/opt/logitux/bin/logitux
+Icon=logitux
+Type=Application
+Terminal=true
+Categories=Settings;HardwareSettings;
+StartupNotify=false

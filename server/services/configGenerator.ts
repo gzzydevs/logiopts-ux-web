@@ -2,7 +2,7 @@
  * Generates Solaar config.yaml and rules.yaml from our ButtonConfig model.
  */
 import yaml from 'js-yaml';
-import type { SolaarConfig, SolaarRule, SolaarAction, ButtonConfig, GestureDirection } from '../types.js';
+import type { SolaarConfig, SolaarRule, SolaarAction, ButtonConfig, GestureDirection } from '../types';
 
 // ─── Solaar rules.yaml generation ────────────────────────────────────────────
 
